@@ -1,6 +1,7 @@
 from wakeonlan import send_magic_packet
 import re, socket, nmap, threading, time
 from getmac import get_mac_address
+from datetime import datetime, timedelta
 import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 
@@ -53,7 +54,7 @@ Can only send a wake package to a given PC, if the phone address is provided, an
         self.stored[phone][0] = address
 
     def iterate(self, data):
-        for key, value in self.stored:
+        for key, value in self.stored.items():
             ping_ = self.ping(data[value[0].lower()])
             if not ping_:
                 self.reset_state(key)
@@ -98,6 +99,7 @@ def loop():
             get_ip()
             counter = 0
         counter += 1
+        time.sleep(20)
 
 def main():
     global loop_run
