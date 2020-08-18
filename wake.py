@@ -1,7 +1,7 @@
 from wakeonlan import send_magic_packet
-import re, socket, nmap, threading, time
+import re, socket, nmap, threading, time, pickle
 from getmac import get_mac_address
-from datetime import datetime, timedelta
+from os import path
 import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 
@@ -114,6 +114,8 @@ def main():
                 print(f"{type(ex)} --> {ex}")
         elif ansv.lower() == "exit":
             loop_run = False
+        with open("pcs", "bw") as f:
+            pickle.dump(pcs, f)
 
 def get_ip():
     global ip
@@ -127,7 +129,11 @@ def add_new_pc(address, phone):
 
 ip = None
 get_ip()
-pcs = computers()
+if path.exists("pcs"):
+    with open("pcs", 'br') as f:
+        pcs = pickle.load(f)
+else:
+    pcs = computers()
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
