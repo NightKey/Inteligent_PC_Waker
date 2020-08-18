@@ -55,7 +55,7 @@ Can only send a wake package to a given PC, if the phone address is provided, an
 
     def iterate(self, data):
         for key, value in self.stored.items():
-            ping_ = self.ping(data[value[0].lower()])
+            ping_ = self.ping(data[value[0].upper()])
             if not ping_:
                 self.reset_state(key)
             if key.lower() in data:
