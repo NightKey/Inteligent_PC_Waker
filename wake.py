@@ -55,16 +55,26 @@ Can only send a wake package to a given PC, if the phone address is provided, an
 
     def iterate(self, data):
         for key, value in self.stored.items():
-            ping_ = self.ping(data[value[0].upper()])
-            if key.lower() in data:
+            try:
+                ping_ = self.ping(data[value[0].upper()])
+            except: ping_ = False
+            if key.upper() in data:
                 if not value[1] and not ping_:
                     print(f"Waking pc {value[0]}")
                     self.wake(key)
             elif value[1] and not ping_:
+                print(f"PC and Phone are offline {value[0]}")
                 self.reset_state(key)
             
     def wake(self, key):
         if not self.stored[key][1]:
+            send_magic_packet(self.stored[key][0])
+            send_magic_packet(self.stored[key][0])
+            send_magic_packet(self.stored[key][0])
+            send_magic_packet(self.stored[key][0])
+            send_magic_packet(self.stored[key][0])
+            send_magic_packet(self.stored[key][0])
+            send_magic_packet(self.stored[key][0])
             send_magic_packet(self.stored[key][0])
             self.stored[key][1] = True
     
