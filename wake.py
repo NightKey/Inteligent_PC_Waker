@@ -56,11 +56,12 @@ Can only send a wake package to a given PC, if the phone address is provided, an
     def iterate(self, data):
         for key, value in self.stored.items():
             ping_ = self.ping(data[value[0].upper()])
-            if not ping_:
-                self.reset_state(key)
             if key.lower() in data:
-                if not value[1]:
+                if not value[1] and not ping_:
+                    print(f"Waking pc {value[0]}")
                     self.wake(key)
+            elif value[1] and not ping_:
+                self.reset_state(key)
             
     def wake(self, key):
         if not self.stored[key][1]:
@@ -104,10 +105,11 @@ def loop():
 def main():
     global loop_run
     while loop_run:
+        print(f"There is currently {len(pcs.stored)} pc added")
         ansv = input("Do you want to add a new PC? (For exit type in 'exit')")
         if ansv.lower() == "y":
             phone = input("Type in your PHONE's MAC adress (xx:xx:xx:xx:xx:xx): ")
-            PC = input("Type in your PC's MAC adress (xx:xx:xx:xx:xx:xx)")
+            PC = input("Type in your PC's MAC adress (xx:xx:xx:xx:xx:xx): ")
             try:
                 pcs.add_new(PC, phone)
             except Exception as ex:
