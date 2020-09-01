@@ -103,15 +103,11 @@ Can only send a wake package to a given PC, if the phone address is provided, an
         return ret
             
     def wake(self, key):
-        print(f"\nWaking {key}\n")
-        send_magic_packet(self.stored[key][0])
-        send_magic_packet(self.stored[key][0])
-        send_magic_packet(self.stored[key][0])
-        send_magic_packet(self.stored[key][0])
-        send_magic_packet(self.stored[key][0])
-        send_magic_packet(self.stored[key][0])
-        send_magic_packet(self.stored[key][0])
-        send_magic_packet(self.stored[key][0])
+        print(f"\nWaking {self.stored[key][-1]}")
+        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
         self.stored[key][1] = True
     
     def reset_state(self, key):
