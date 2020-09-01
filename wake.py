@@ -32,14 +32,14 @@ Can only send a wake package to a given PC, if the phone address is provided, an
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
         if not self.is_MAC(address):
-            return False # TypeError("'address' should be a MAC address")
+            return "PC" # TypeError("'address' should be a MAC address")
         if not self.is_MAC(phone_address):
-            return False # TypeError("'phone_address' should be a MAC address")
+            return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
-            return False # KeyError("'phone_address' already used for a computer.")
+            return "USED" # KeyError("'phone_address' already used for a computer.")
         self.stored[phone_address] = [address, False, self.id if id is None else id, name]   #[phone adress] -> [PC_address, is_awaken, ID, name]
         if id is None: self.id += 0x1
-        return True
+        return False
 
     def get_UI_list(self):
         ret = []
@@ -250,7 +250,9 @@ def call_back(_type, data):
         ret = pcs.add_new(data[1], data[0], data[3], data[2])
     elif _type == "EDIT":
         ret = pcs.changed(data)
-    if ret: window.update_UI(pcs)
+    if not ret: window.update_UI(pcs)
+    else:
+        sg.popup(ret, "Error")
     save()
 
 def delete(name):
