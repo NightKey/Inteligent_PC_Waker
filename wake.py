@@ -14,6 +14,7 @@ Can only send a wake package to a given PC, if the phone address is provided, an
     """
     def __init__(self):
         self.stored = {}
+        self.id = 0x0
 
     def ping(self, host):
         """
@@ -26,7 +27,7 @@ Can only send a wake package to a given PC, if the phone address is provided, an
         command = ['ping', param, '1', host]
         return subprocess.call(command) == 0
 
-    def add_new(self, address, phone_address, name):
+    def add_new(self, address, phone_address, name, id=None):
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
@@ -36,12 +37,14 @@ Can only send a wake package to a given PC, if the phone address is provided, an
             return False # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return False # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = [address, False, name]   #[phone adress] -> [PC_address, is_awaken]
+        self.stored[phone_address] = [address, False, self.id if id is None else id, name]   #[phone adress] -> [PC_address, is_awaken, ID, name]
+        if id is None: self.id += 0x1
+        return True
 
     def get_UI_list(self):
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item[2]} - {'MP sent' if item[1] else 'PM not sent'}")
+            ret.append(f"{item[3]} - {'MP sent' if item[1] else 'PM not sent'}")
         return ret
 
     def __len__(self):
@@ -58,31 +61,21 @@ Can only send a wake package to a given PC, if the phone address is provided, an
             return None
 
     def changed(self, data):
-        if data[0] in self.stored:
-            self.change_address(data[0], data[1])
-            self.stored[data[0]][2] = data[2]
-        elif self.get_by_name(data[2]) is not None:
-            self.change_phone(self.get_by_name(data[2]), data[0])
-            self.stored[data[0]][2] = data[2]
-
-    def change_phone(self, old_phone, new_phone):
-        if not self.is_MAC(new_phone):
-            raise TypeError("'new_phone' should be a MAC address")
-        tmp = self.stored.pop(old_phone)
-        self.stored[new_phone] = tmp
+        del self.stored[self.get_by_id(data[2])]
+        self.add_new(data[1], data[0], data[3], data[2])
     
     def remove(self, other):
         del self.stored[other]
 
-    def change_address(self, phone, address):
-        if not self.is_MAC(address):
-            raise TypeError("'address' should be a MAC address")
-        self.stored[phone][0] = address
-
     def get_by_name(self, name):
         name = name.strip()
         for key, values in self.stored.items():
-            if values[2] == name:
+            if values[3] == name:
+                return key
+    
+    def get_by_id(self, id):
+        for key, value in self.stored.items():
+            if value[2] == id:
                 return key
 
     def iterate(self, data):
@@ -102,8 +95,12 @@ Can only send a wake package to a given PC, if the phone address is provided, an
                 ret = True
         return ret
             
+    def wake_everyone(self):
+        for key in self.stored.keys():
+            self.wake(key)
+
     def wake(self, key):
-        print(f"\nWaking {self.stored[key][-1]}")
+        print(f"Waking {self.stored[key][-1]}")
         send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
         send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
         send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
@@ -114,12 +111,13 @@ Can only send a wake package to a given PC, if the phone address is provided, an
         self.stored[key][1] = False
     
     def is_MAC(self, _input):
+        _input.replace("-", ':').replace(".", ':').replace(" ", ':')
         if re.match(r"([a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+)", _input) is None:
             return False
         return True
 
 class data_edit:
-    def __init__(self, title, sender=None, pc=None, name=None):
+    def __init__(self, title, sender=None, pc=None, id=None, name=None):
         layout = [
             [sg.Text("Telefon MAC címe"), sg.In(default_text=(sender if sender is not None else ''), key="SENDER")],
             [sg.Text("PC MAC címe"), sg.In(default_text=(pc if pc is not None else ''), key="PC")],
@@ -129,6 +127,7 @@ class data_edit:
         self.window = sg.Window(title, layout)
         self.read = self.window.read
         self.is_running = True
+        self.id = id
 
     def Close(self):
         self.is_running = False
@@ -140,7 +139,7 @@ class data_edit:
             return None
         elif event == "FINISHED":
             self.Close()
-            return [values["SENDER"], values["PC"], values["NAME"]]
+            return [values["SENDER"], values["PC"], self.id, values["NAME"]]
 
     def show(self):
         while self.is_running:
@@ -149,10 +148,10 @@ class data_edit:
         return ret
 
 class main_window:
-    def __init__(self, pcs, call_back, delete, get_items):
+    def __init__(self, pcs, call_back, delete, get_items, ui_wake):
         layout = [
             [sg.Listbox(values=pcs, key="PCS", size=(75,25), enable_events=True)],
-            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Törlés", key="DELETE")]
+            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Button("Ébresztés", key="WAKE")]
         ]
         self.window = sg.Window("IPW", layout, finalize=True)
         self.read = self.window.read
@@ -160,6 +159,7 @@ class main_window:
         self.call_back = call_back
         self.delete = delete
         self.get_items = get_items
+        self.ui_wake = ui_wake
 
     def work(self, event, values):
         if event == sg.WINDOW_CLOSED:
@@ -167,16 +167,18 @@ class main_window:
         elif event == "DELETE":
             if values["PCS"] != []:
                 self.delete(values["PCS"][0].split("-")[0])
-        elif event == "NEW" or event == "PCS":
+        elif event == "NEW" or event == "EDIT":
             if event == "NEW":
                 tmp = data_edit(title="Új adat felvétele")
             else:
                 data = self.get_items(values["PCS"][0].split("-")[0])
                 print(data)
-                tmp = data_edit("Szerkesztés", data[0], data[1][0], data[1][2])
+                tmp = data_edit("Szerkesztés", data[0], data[1][0], data[1][2], data[1][3])
             new_data = tmp.show()
             if new_data is not None:
                 self.call_back(event, new_data)
+        elif event == "WAKE":
+            self.update_UI(self.ui_wake(values["PCS"][0].split("-")[0]))
 
     def update_UI(self, pcs):
         self.window["PCS"].Update(pcs)
@@ -245,10 +247,10 @@ def add_new_pc(address, phone):
 def call_back(_type, data):
     global pcs
     if _type == "NEW":
-        pcs.add_new(data[1], data[0], data[2])
-    elif _type == "PCS":
-        pcs.changed(data)
-    window.update_UI(pcs)
+        ret = pcs.add_new(data[1], data[0], data[3], data[2])
+    elif _type == "EDIT":
+        ret = pcs.changed(data)
+    if ret: window.update_UI(pcs)
     save()
 
 def delete(name):
@@ -262,9 +264,18 @@ def console():
         if "wake" in inp:
             name = inp.split(" ")[-1]
             pcs.wake(pcs.get_by_name(name))
+        elif "morning" in inp:
+            pcs.wake_everyone()
         elif "stop" in inp:
             loop_run = False
             window.Close()
+        elif "list" in inp:
+            for values in pcs:
+                print(values.split(" - ")[0])
+
+def UI_wake(name):
+    pcs.wake(pcs.get_by_name(name))
+    return pcs
 
 ip = None
 get_ip()
@@ -279,5 +290,5 @@ check_loop.start()
 terminal = threading.Thread(target=console)
 terminal.name = "Terminal"
 terminal.start()
-window = main_window(pcs, call_back, delete, get_data)
+window = main_window(pcs, call_back, delete, get_data, UI_wake)
 main()
