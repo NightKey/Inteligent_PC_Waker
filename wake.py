@@ -199,14 +199,17 @@ def scann(_ip):
     ip = '.'.join(ip)
     #start = time.process_time()
     scanner = nmap.PortScanner()
-    ip_s = scanner.scan(hosts=ip, arguments="-sn")
-    #scann_end = time.process_time()
-    mc = {}
-    for ip in ip_s["scan"].values():
-        if ip["addresses"]["ipv4"] != _ip:
-            mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
-    #finish = time.process_time()
-    return mc
+    try:
+        ip_s = scanner.scan(hosts=ip, arguments="-sn")
+        #scann_end = time.process_time()
+        mc = {}
+        for ip in ip_s["scan"].values():
+            if ip["addresses"]["ipv4"] != _ip:
+                mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
+        #finish = time.process_time()
+        return mc
+    except Exception as ex:
+        print(f"Error happaned {ex}")
 
 def get_data(name):
     key = pcs.get_by_name(name)
@@ -222,7 +225,7 @@ def loop():
             get_ip()
             counter = 0
         counter += 1
-        time.sleep(20)
+        time.sleep(5)
 
 def main():
     global loop_run
