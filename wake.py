@@ -82,15 +82,15 @@ class computers:
         ret = False
         if data == {}: return ret
         for key, value in self.stored.items():
-            try:
-                data[value[0].upper()]
-                Is_Online = True
-            except: Is_Online = False
+            if value[0].upper() in data: Is_Online = True
+            else: Is_Online = False
             ret = False
             if key.upper() in data:
                 if not value[1] and not Is_Online:
                     ret = True
                     self.wake(key)
+                elif value[1] and not Is_Online:
+                    print(f"{value[-1]} went offline.")
             elif value[1] and not Is_Online:
                 self.reset_state(key)
                 ret = True
@@ -110,6 +110,7 @@ class computers:
     
     def reset_state(self, key):
         self.stored[key][1] = False
+        print(f"{self.stored[key][-1]} Phone offline")
     
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
