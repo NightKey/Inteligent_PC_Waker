@@ -210,6 +210,7 @@ def scann(_ip):
         return mc
     except Exception as ex:
         print(f"Error happaned {ex}")
+        return {}
 
 def get_data(name):
     key = pcs.get_by_name(name)
