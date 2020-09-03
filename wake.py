@@ -10,7 +10,7 @@ loop_run = True
 
 class computers:
     """Stores multiple computer-phone address pairs.
-Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
+    Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
     """
     def __init__(self):
         self.stored = {}
@@ -80,6 +80,7 @@ Can only send a wake package to a given PC, if the phone address is provided, an
 
     def iterate(self, data):
         ret = False
+        if data == {}: return ret
         for key, value in self.stored.items():
             try:
                 data[value[0].upper()]
