@@ -202,7 +202,7 @@ def scann(_ip):
     #start = time.process_time()
     scanner = nmap.PortScanner()
     try:
-        ip_s = scanner.scan(hosts=ip, arguments="-sn")
+        ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 100")
         #scann_end = time.process_time()
         mc = {}
         for ip in ip_s["scan"].values():
