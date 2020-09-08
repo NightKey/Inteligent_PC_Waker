@@ -5,6 +5,7 @@ from os import path
 import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 import PySimpleGUI as sg
+from datetime import datetime, timedelta
 
 loop_run = True
 
@@ -37,14 +38,14 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = [address, False, self.id if id is None else id, name]   #[phone adress] -> [PC_address, is_awaken, ID, name]
+        self.stored[phone_address] = {"pc":address, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now()}   #[phone adress] -> [PC_address, is_awaken, ID, name]
         if id is None: self.id += 0x1
         return False
 
     def get_UI_list(self):
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item[3]} - {'MP sent' if item[1] else 'PM not sent'}")
+            ret.append(f"{item['name']} - {'MP sent' if item['was wakened'] else 'PM not sent'}")
         return ret
 
     def __len__(self):
@@ -70,29 +71,29 @@ class computers:
     def get_by_name(self, name):
         name = name.strip()
         for key, values in self.stored.items():
-            if values[3] == name:
+            if values["name"] == name:
                 return key
     
     def get_by_id(self, id):
         for key, value in self.stored.items():
-            if value[2] == id:
+            if value["id"] == id:
                 return key
 
     def iterate(self, data):
         ret = False
         if data == {}: return ret
-        for key, value in self.stored.items():
-            if value[0].upper() in data: Is_Online = True
-            else: Is_Online = False
+        for phone, value in self.stored.items():
+            PC_Online = value["pc"].upper() in data
             ret = False
-            if key.upper() in data:
-                if not value[1] and not Is_Online:
+            if phone.upper() in data:
+                value["phone last online"] = datetime.now()
+                if not value["was wakened"] and not PC_Online:
                     ret = True
-                    self.wake(key)
-                elif value[1] and not Is_Online:
-                    print(f"{value[-1]} went offline.")
-            elif value[1] and not Is_Online:
-                self.reset_state(key)
+                    self.wake(phone)
+                elif value["was wakened"] and not PC_Online:
+                    print(f"{value['name']} PC went offline.")
+            elif value["was wakened"] and not PC_Online and datetime.now()-value["phone last online"] >= timedelta(minutes=10):
+                self.reset_state(phone)
                 ret = True
         return ret
             
@@ -100,17 +101,17 @@ class computers:
         for key in self.stored.keys():
             self.wake(key)
 
-    def wake(self, key):
-        print(f"Waking {self.stored[key][-1]}")
-        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[key][0], ip_address="192.168.0.255")
-        self.stored[key][1] = True
+    def wake(self, phone):
+        print(f"Waking {self.stored[phone]['name']}")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
+        self.stored[phone]["was wakened"] = True
     
-    def reset_state(self, key):
-        self.stored[key][1] = False
-        print(f"{self.stored[key][-1]} Phone offline")
+    def reset_state(self, phone):
+        self.stored[phone]["was wakened"] = False
+        print(f"{self.stored[phone]['name']} Phone offline")
     
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
@@ -201,18 +202,19 @@ def scann(_ip):
     ip = '.'.join(ip)
     #start = time.process_time()
     scanner = nmap.PortScanner()
-    try:
-        ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 100")
-        #scann_end = time.process_time()
-        mc = {}
-        for ip in ip_s["scan"].values():
-            if ip["addresses"]["ipv4"] != _ip:
-                mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
-        #finish = time.process_time()
-        return mc
-    except Exception as ex:
-        print(f"Error happaned {ex}")
-        return {}
+    mc = {}
+    while True:
+        try:
+            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 100")
+            #scann_end = time.process_time()
+            for ip in ip_s["scan"].values():
+                if ip["addresses"]["ipv4"] != _ip:
+                    mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
+            #finish = time.process_time()
+            break
+        except Exception as ex:
+            print(f"Error happaned {ex}")
+    return mc
 
 def get_data(name):
     key = pcs.get_by_name(name)
@@ -228,7 +230,7 @@ def loop():
             get_ip()
             counter = 0
         counter += 1
-        time.sleep(5)
+        time.sleep(0.2)
 
 def main():
     global loop_run
