@@ -121,6 +121,8 @@ class computers:
 
 class data_edit:
     def __init__(self, title, sender=None, pc=None, id=None, name=None):
+        """For editing the data
+        """
         layout = [
             [sg.Text("Telefon MAC címe"), sg.In(default_text=(sender if sender is not None else ''), key="SENDER")],
             [sg.Text("PC MAC címe"), sg.In(default_text=(pc if pc is not None else ''), key="PC")],
@@ -176,7 +178,7 @@ class main_window:
             else:
                 data = self.get_items(values["PCS"][0].split("-")[0])
                 print(data)
-                tmp = data_edit("Szerkesztés", data[0], data[1][0], data[1][2], data[1][3])
+                tmp = data_edit("Szerkesztés", data[0], data[1]["pc"], data[1]["id"], data[1]["name"])
             new_data = tmp.show()
             if new_data is not None:
                 self.call_back(event, new_data)
