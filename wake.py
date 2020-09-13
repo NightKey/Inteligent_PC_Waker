@@ -48,7 +48,7 @@ class computers:
         """
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and not item['is_online'] else 'Offline' if item['is_online'] else 'Online'}")
+            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and not item['is_online'] else 'Online' if item['is_online'] else 'Offline'}")
         return ret
 
     def __len__(self):
@@ -119,11 +119,11 @@ class computers:
     
     def save_to_json(self):
         out = [{'phone':phone, 'pc':values['pc'], 'name':values['name']} for phone, values in self.stored.items()]
-        with open('export.json', 'w') as f:
+        with open('export.json', 'w', encoding='utf-8') as f:
             json.dump(out, f)
 
     def import_from_json(self):
-        with open("export.json", 'r') as f:
+        with open("export.json", 'r', encoding='utf-8') as f:
             tmp = json.load(f)
         for item in tmp:
             self.add_new(item["pc"], item['phone'], item['name'])
