@@ -43,9 +43,12 @@ class computers:
         return False
 
     def get_UI_list(self):
+        """Returns a list for the UI containing the following format:
+        name - offline/WOL sent
+        """
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item['name']} - {'MP sent' if item['was wakened'] else 'PM not sent'}")
+            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] else 'Offline'}")
         return ret
 
     def __len__(self):
@@ -165,25 +168,31 @@ class main_window:
         self.delete = delete
         self.get_items = get_items
         self.ui_wake = ui_wake
+        self.selected = None
 
     def work(self, event, values):
         if event == sg.WINDOW_CLOSED:
             self.Close()
+        elif event == "PCS":
+            self.selected = values["PCS"][0].split('-')[0]
         elif event == "DELETE":
-            if values["PCS"] != []:
-                self.delete(values["PCS"][0].split("-")[0])
+            if self.selected is not None:
+                self.delete(self.selected)
+                self.selected = None
         elif event == "NEW" or event == "EDIT":
             if event == "NEW":
                 tmp = data_edit(title="Új adat felvétele")
             else:
-                data = self.get_items(values["PCS"][0].split("-")[0])
-                print(data)
-                tmp = data_edit("Szerkesztés", data[0], data[1]["pc"], data[1]["id"], data[1]["name"])
+                if self.selected is not None:
+                    data = self.get_items(self.selected)
+                    tmp = data_edit("Szerkesztés", data[0], data[1]["pc"], data[1]["id"], data[1]["name"])
+                    self.selected = None
             new_data = tmp.show()
             if new_data is not None:
                 self.call_back(event, new_data)
         elif event == "WAKE":
-            self.update_UI(self.ui_wake(values["PCS"][0].split("-")[0]))
+            if self.selected is not None:
+                self.update_UI(self.ui_wake(self.selected))
 
     def update_UI(self, pcs):
         self.window["PCS"].Update(pcs)
