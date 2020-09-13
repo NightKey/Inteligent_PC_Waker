@@ -1,5 +1,5 @@
 from wakeonlan import send_magic_packet
-import re, socket, nmap, threading, time, pickle
+import re, socket, nmap, threading, time, pickle, json
 from getmac import get_mac_address
 from os import path
 import platform    # For getting the operating system name
@@ -38,7 +38,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now()}   #[phone adress] -> [PC_address, is_awaken, ID, name]
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now()}   #[phone adress] -> [PC_address, is_awaken, ID, name]
         if id is None: self.id += 0x1
         return False
 
@@ -48,7 +48,7 @@ class computers:
         """
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] else 'Offline'}")
+            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and not item['is_online'] else 'Offline' if item['is_online'] else 'Online'}")
         return ret
 
     def __len__(self):
@@ -88,6 +88,7 @@ class computers:
         for phone, value in self.stored.items():
             PC_Online = value["pc"].upper() in data
             ret = False
+            self.stored[phone]["is_online"] = PC_Online
             if phone.upper() in data:
                 value["phone last online"] = datetime.now()
                 if not value["was wakened"] and not PC_Online:
@@ -116,6 +117,17 @@ class computers:
         self.stored[phone]["was wakened"] = False
         print(f"{self.stored[phone]['name']} Phone offline")
     
+    def save_to_json(self):
+        out = [{'phone':phone, 'pc':values['pc'], 'name':values['name']} for phone, values in self.stored.items()]
+        with open('export.json', 'w') as f:
+            json.dump(out, f)
+
+    def import_from_json(self):
+        with open("export.json", 'r') as f:
+            tmp = json.load(f)
+        for item in tmp:
+            self.add_new(item["pc"], item['phone'], item['name'])
+
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
         if re.match(r"([a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+)", _input) is None:
@@ -289,6 +301,7 @@ def console():
             pcs.wake_everyone()
         elif "stop" in inp:
             loop_run = False
+            pcs.save_to_json()
             window.Close()
         elif "list" in inp:
             for values in pcs:
@@ -305,6 +318,8 @@ if path.exists("pcs"):
         pcs = pickle.load(f)
 else:
     pcs = computers()
+    if path.exists('export.json'):
+        pcs.import_from_json()
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
