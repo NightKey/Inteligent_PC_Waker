@@ -13,9 +13,12 @@ class computers:
     """Stores multiple computer-phone address pairs.
     Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
     """
-    def __init__(self, window=None):
+    def __init__(self):
         self.stored = {}
         self.id = 0x0
+        self.window = None
+
+    def set_window(self, window):
         self.window = window
 
     def ping(self, host):
@@ -312,6 +315,7 @@ def console():
         elif "stop" in inp:
             loop_run = False
             pcs.save_to_json()
+            save()
             window.Close()
         elif "list" in inp:
             for values in pcs:
@@ -324,15 +328,16 @@ def UI_wake(name):
 #_api = API("Waker", "")
 ip = None
 get_ip()
-window = main_window(pcs, call_back, delete, get_data, UI_wake)
 if path.exists("pcs"):
     with open("pcs", 'br') as f:
         pcs = pickle.load(f)
-        pcs.window = window
 else:
-    pcs = computers(window)
+    pcs = computers()
     if path.exists('export.json'):
         pcs.import_from_json()
+        save()
+window = main_window(pcs, call_back, delete, get_data, UI_wake)
+pcs.set_window(window)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
