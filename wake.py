@@ -324,11 +324,13 @@ def UI_wake(name):
 #_api = API("Waker", "")
 ip = None
 get_ip()
+window = main_window(pcs, call_back, delete, get_data, UI_wake)
 if path.exists("pcs"):
     with open("pcs", 'br') as f:
         pcs = pickle.load(f)
+        pcs.window = window
 else:
-    pcs = computers()
+    pcs = computers(window)
     if path.exists('export.json'):
         pcs.import_from_json()
 check_loop = threading.Thread(target=loop)
@@ -337,5 +339,4 @@ check_loop.start()
 terminal = threading.Thread(target=console)
 terminal.name = "Terminal"
 terminal.start()
-window = main_window(pcs, call_back, delete, get_data, UI_wake)
 main()
