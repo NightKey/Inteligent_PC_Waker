@@ -13,9 +13,10 @@ class computers:
     """Stores multiple computer-phone address pairs.
     Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
     """
-    def __init__(self):
+    def __init__(self, window=None):
         self.stored = {}
         self.id = 0x0
+        self.window = window
 
     def ping(self, host):
         """
@@ -38,7 +39,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now()}   #[phone adress] -> [PC_address, is_awaken, ID, name]
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "offline":False}   #[phone adress] -> [PC_address, is_awaken, ID, name]
         if id is None: self.id += 0x1
         return False
 
@@ -89,15 +90,20 @@ class computers:
             PC_Online = value["pc"].upper() in data
             ret = False
             self.stored[phone]["is_online"] = PC_Online
+            if PC_Online and self.stored[phone]['offline'] != PC_Online:
+                self.stored[phone]['offline'] = False
             if phone.upper() in data:
                 value["phone last online"] = datetime.now()
                 if not value["was wakened"] and not PC_Online:
                     ret = True
                     self.wake(phone)
-                elif value["was wakened"] and not PC_Online:
+                elif value["was wakened"] and not PC_Online and not value['offline']:
                     print(f"{value['name']} PC went offline.")
+                    self.window.update_UI(self)
+                    self.stored[phone]['offline'] = True
             elif value["was wakened"] and not PC_Online and datetime.now()-value["phone last online"] >= timedelta(minutes=10):
                 self.reset_state(phone)
+                self.window.update_UI(self)
                 ret = True
         return ret
             
@@ -107,6 +113,10 @@ class computers:
 
     def wake(self, phone):
         print(f"Waking {self.stored[phone]['name']}")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
+        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
@@ -311,6 +321,7 @@ def UI_wake(name):
     pcs.wake(pcs.get_by_name(name))
     return pcs
 
+#_api = API("Waker", "")
 ip = None
 get_ip()
 if path.exists("pcs"):
