@@ -249,7 +249,7 @@ def shutdown_pc(phone, sleep=False):
 
 def scann(_ip):
     ip = _ip.split(".")
-    ip[-1] = "2-254"
+    ip[-1] = "2-24"
     ip = '.'.join(ip)
     #start = time.process_time()
     scanner = nmap.PortScanner()
