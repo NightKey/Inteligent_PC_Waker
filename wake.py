@@ -1,7 +1,7 @@
 from wakeonlan import send_magic_packet
 import re, socket, nmap, threading, time, pickle, json
 from getmac import get_mac_address
-from os import path
+from os import path, devnull
 import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 import PySimpleGUI as sg
@@ -31,7 +31,7 @@ class computers:
         param = '-n' if platform.system().lower()=='windows' else '-c'
         # Building the command. Ex: "ping -c 1 google.com"
         command = ['ping', param, '1', host]
-        return subprocess.call(command) == 0
+        return subprocess.call(command, stdout=devnull) == 0
 
     def add_new(self, address, phone_address, name, id=None):
         """
