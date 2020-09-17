@@ -202,6 +202,7 @@ class main_window:
             self.Close()
         elif event == "PCS":
             self.selected = values["PCS"][0].split('-')[0]
+            print(f"Selected: {self.get_items(self.selected)}")
         elif event == "DELETE":
             if self.selected is not None:
                 self.delete(self.selected)
