@@ -87,19 +87,17 @@ class computers:
                 return key
 
     def iterate(self, data):
-        ret = False
-        if data == {}: return ret
+        if data == {}: return
         for phone, value in self.stored.items():
-            PC_Online = value["pc"].upper() in data
-            ret = False
+            PC_Online = (value["pc"].upper() in data)
             self.stored[phone]["is_online"] = PC_Online
             if PC_Online and self.stored[phone]['offline'] != PC_Online:
                 self.stored[phone]['offline'] = False
             if phone.upper() in data:
                 value["phone last online"] = datetime.now()
                 if not value["was wakened"] and not PC_Online:
-                    ret = True
                     self.wake(phone)
+                    self.window.update_UI(self)
                 elif value["was wakened"] and not PC_Online and not value['offline']:
                     print(f"{value['name']} PC went offline.")
                     self.window.update_UI(self)
@@ -107,8 +105,6 @@ class computers:
             elif value["was wakened"] and not PC_Online and datetime.now()-value["phone last online"] >= timedelta(minutes=10):
                 self.reset_state(phone)
                 self.window.update_UI(self)
-                ret = True
-        return ret
             
     def wake_everyone(self):
         for key in self.stored.keys():
@@ -260,11 +256,10 @@ def loop():
     global ip
     counter = 0
     while loop_run:
-        if pcs.iterate(scann(ip)):
-            window.update_UI(pcs)
+        pcs.iterate(scann(ip))
         if counter == 200:
             get_ip()
-            counter = 0
+            counter = -1
         counter += 1
         time.sleep(0.2)
 
