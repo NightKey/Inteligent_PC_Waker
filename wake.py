@@ -87,25 +87,30 @@ class computers:
             if value["id"] == id:
                 return key
 
-    def iterate(self, data):
-        if data == {}: return
-        for phone, value in self.stored.items():
-            PC_Online = (value["pc"].upper() in data)
+    def iterate(self, resoults):
+        if resoults == {}: return
+        for phone, data in self.stored.items():
+            PC_Online = (data["pc"].upper() in resoults)
             self.stored[phone]["is_online"] = PC_Online
             if PC_Online and not self.stored[phone]['was_online']:
                 self.stored[phone]['was_online'] = True
+                self.stored[phone]["pc_ip"] = resoults[self.stored[phone]['pc']]
+            elif not PC_Online:
+                self.stored[phone]["pc_ip"] = None
             if phone.upper() in data:
-                value["phone last online"] = datetime.now()
-                if not value["was wakened"] and not PC_Online:
+                data["phone last online"] = datetime.now()
+                if not data["was wakened"] and not PC_Online:
                     self.wake(phone)
                     self.window.update_UI(self)
-                elif value["was wakened"] and not PC_Online and value['was_online']:
-                    print(f"{value['name']} PC went offline.")
+                elif data["was wakened"] and not PC_Online and data['was_online']:
+                    print(f"{data['name']} PC went offline.")
                     self.window.update_UI(self)
                     self.stored[phone]['was_online'] = False
-            elif value["was wakened"] and not PC_Online and datetime.now()-value["phone last online"] >= timedelta(minutes=10):
+            elif data["was wakened"] and not PC_Online and datetime.now()-data["phone last online"] >= timedelta(minutes=10):
                 self.reset_state(phone)
                 self.window.update_UI(self)
+            elif data["was wakened"] and PC_Online and datetime.now()-data["phone last online"] <= timedelta(minutes=2):
+                shutdown_pc(phone)
             
     def wake_everyone(self):
         for key in self.stored.keys():
@@ -228,6 +233,13 @@ class main_window:
         self.window.Close()
         self.is_running = False
 
+def shutdown_pc(phone, sleep=False):
+    IP = pcs[phone]['pc_ip']
+    if IP is None: return
+    _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    _socket.connect((IP, 666))
+    command="SHUTDOWN" if not sleep else "SLEEP"
+    send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc']}".encode("utf-8")).hexdigest())
 
 def scann(_ip):
     ip = _ip.split(".")
@@ -326,6 +338,12 @@ def console():
             pcs.save_to_json()
             save()
             window.Close()
+        elif "shutdown" in inp:
+            name = inp.split(" ")[-1]
+            shutdown_pc(pcs.get_by_name(name))
+        elif "sleep" in inp:
+            name = inp.split(" ")[-1]
+            shutdown_pc(pcs.get_by_name(name), True)
         elif "list" in inp:
             for values in pcs:
                 print(values.split(" - ")[0])
