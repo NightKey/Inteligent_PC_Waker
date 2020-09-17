@@ -43,7 +43,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "was_online":False, "wake time":datetime.now()}
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was_online":False, "wake time":None}
         if id is None: self.id += 0x1
         return False
 
@@ -90,14 +90,15 @@ class computers:
     def iterate(self, resoults):
         if resoults == {}: return
         for phone, data in self.stored.items():
-            PC_Online = (data["pc"].upper() in resoults)
+            PC_Online = (data["pc"].upper() in resoults and self.ping(resoults[data["pc"].upper()]))
             self.stored[phone]["is_online"] = PC_Online
             if PC_Online and not self.stored[phone]['was_online']:
+                self.window.update_UI(self)
                 self.stored[phone]['was_online'] = True
                 self.stored[phone]["pc_ip"] = resoults[self.stored[phone]['pc']]
             elif not PC_Online:
                 self.stored[phone]["pc_ip"] = None
-            if phone.upper() in data:
+            if phone.upper() in resoults:
                 data["phone last online"] = datetime.now()
                 if not data["was wakened"] and not PC_Online:
                     self.wake(phone)
@@ -106,10 +107,10 @@ class computers:
                     print(f"{data['name']} PC went offline.")
                     self.window.update_UI(self)
                     self.stored[phone]['was_online'] = False
-            elif data["was wakened"] and datetime.now()-data["phone last online"] > timedelta(minutes=5):
+            elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
                 self.reset_state(phone)
                 self.window.update_UI(self)
-                if PC_Online and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
+                if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
             
     def wake_everyone(self):
         for key in self.stored.keys():
