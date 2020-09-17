@@ -32,8 +32,8 @@ class computers:
         # Building the command. Ex: "ping -c 1 google.com"
         command = ['ping', param, '1', host]
         with open(devnull, 'a') as dnull:
-            yield subprocess.call(command, stdout=dnull) == 0
-        return
+            tmp = subprocess.call(command, stdout=dnull) == 0
+        return tmp
 
     def add_new(self, address, phone_address, name, id=None):
         """
