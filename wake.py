@@ -31,7 +31,9 @@ class computers:
         param = '-n' if platform.system().lower()=='windows' else '-c'
         # Building the command. Ex: "ping -c 1 google.com"
         command = ['ping', param, '1', host]
-        return subprocess.call(command, stdout=devnull) == 0
+        with open(devnull, 'a') as dnull:
+            yield subprocess.call(command, stdout=dnull) == 0
+        return
 
     def add_new(self, address, phone_address, name, id=None):
         """
