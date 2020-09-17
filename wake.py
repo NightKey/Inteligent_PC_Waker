@@ -6,6 +6,7 @@ import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 import PySimpleGUI as sg
 from datetime import datetime, timedelta
+from hashlib import sha256
 
 loop_run = True
 
@@ -42,7 +43,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "offline":False}   #[phone adress] -> [PC_address, is_awaken, ID, name]
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "was_online":False}   #[phone adress] -> [PC_address, is_awaken, ID, name]
         if id is None: self.id += 0x1
         return False
 
@@ -91,17 +92,17 @@ class computers:
         for phone, value in self.stored.items():
             PC_Online = (value["pc"].upper() in data)
             self.stored[phone]["is_online"] = PC_Online
-            if PC_Online and self.stored[phone]['offline'] != PC_Online:
-                self.stored[phone]['offline'] = False
+            if PC_Online and not self.stored[phone]['was_online']:
+                self.stored[phone]['was_online'] = True
             if phone.upper() in data:
                 value["phone last online"] = datetime.now()
                 if not value["was wakened"] and not PC_Online:
                     self.wake(phone)
                     self.window.update_UI(self)
-                elif value["was wakened"] and not PC_Online and not value['offline']:
+                elif value["was wakened"] and not PC_Online and value['was_online']:
                     print(f"{value['name']} PC went offline.")
                     self.window.update_UI(self)
-                    self.stored[phone]['offline'] = True
+                    self.stored[phone]['was_online'] = False
             elif value["was wakened"] and not PC_Online and datetime.now()-value["phone last online"] >= timedelta(minutes=10):
                 self.reset_state(phone)
                 self.window.update_UI(self)
@@ -247,6 +248,19 @@ def scann(_ip):
         except Exception as ex:
             print(f"Error happaned {ex}")
     return mc
+
+def send(socket, msg):
+    msg = json.dumps(msg)
+    while True:
+        tmp = ''
+        if len(msg) > 9:
+            tmp = msg[9:]
+            msg = msg[:9]
+        socket.send(str(len(msg)).encode(encoding='utf-8'))
+        socket.send(msg.encode(encoding="utf-8"))
+        if tmp == '': tmp = '\n'
+        if msg == '\n': break
+        msg = tmp
 
 def get_data(name):
     key = pcs.get_by_name(name)
