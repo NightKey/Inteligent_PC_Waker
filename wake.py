@@ -43,7 +43,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "was_online":False}   #[phone adress] -> [PC_address, is_awaken, ID, name]
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "was_online":False}
         if id is None: self.id += 0x1
         return False
 
@@ -234,12 +234,14 @@ class main_window:
         self.is_running = False
 
 def shutdown_pc(phone, sleep=False):
-    IP = pcs[phone]['pc_ip']
-    if IP is None: return
-    _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    _socket.connect((IP, 666))
-    command="SHUTDOWN" if not sleep else "SLEEP"
-    send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc']}".encode("utf-8")).hexdigest())
+    try: 
+        IP = pcs[phone]['pc_ip']
+        if IP is None: return
+        _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _socket.connect((IP, 666))
+        command="SHUTDOWN" if not sleep else "SLEEP"
+        send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc']}".encode("utf-8")).hexdigest())
+    except Exception as ex: print(ex)
 
 def scann(_ip):
     ip = _ip.split(".")
