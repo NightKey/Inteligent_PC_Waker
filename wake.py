@@ -43,7 +43,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "was_online":False}
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":datetime.now(), "was_online":False, "wake time":datetime.now()}
         if id is None: self.id += 0x1
         return False
 
@@ -106,11 +106,10 @@ class computers:
                     print(f"{data['name']} PC went offline.")
                     self.window.update_UI(self)
                     self.stored[phone]['was_online'] = False
-            elif data["was wakened"] and not PC_Online and datetime.now()-data["phone last online"] >= timedelta(minutes=10):
+            elif data["was wakened"] and datetime.now()-data["phone last online"] > timedelta(minutes=5):
                 self.reset_state(phone)
                 self.window.update_UI(self)
-            elif data["was wakened"] and PC_Online and datetime.now()-data["phone last online"] <= timedelta(minutes=2):
-                shutdown_pc(phone)
+                if PC_Online and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
             
     def wake_everyone(self):
         for key in self.stored.keys():
@@ -127,6 +126,7 @@ class computers:
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         self.stored[phone]["was wakened"] = True
+        self.stored[phone]["wake time"] = datetime.now()
     
     def reset_state(self, phone):
         self.stored[phone]["was wakened"] = False
