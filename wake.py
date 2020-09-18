@@ -55,7 +55,7 @@ class computers:
         """
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and not item['is_online'] else 'Online' if item['is_online'] else 'Offline'}")
+            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and not item['was_online'] else 'Online' if item['is_online'] else 'Offline'}")
         return ret
 
     def __len__(self):
@@ -109,11 +109,15 @@ class computers:
                     print(f"{data['name']} PC went offline.")
                     self.window.update_UI(self)
                     self.stored[phone]['was_online'] = False
-            elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
+            elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=10)):
                 self.reset_state(phone)
                 self.window.update_UI(self)
                 if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
-            
+            elif PC_Online and datetime.now()-data["phone last online"] > timedelta(hours=1):
+                shutdown_pc(phone)
+                self.reset_state(phone)
+                self.window.update_UI(self)
+
     def wake_everyone(self):
         for key in self.stored.keys():
             self.wake(key)
@@ -251,7 +255,7 @@ def scann(_ip):
     ip = _ip.split(".")
     ip[-1] = "2-254"
     ip = '.'.join(ip)
-    #start = time.process_time()
+    start = time.process_time()
     scanner = nmap.PortScanner()
     mc = {}
     while True:
@@ -261,11 +265,11 @@ def scann(_ip):
             for ip in ip_s["scan"].values():
                 if ip["addresses"]["ipv4"] != _ip:
                     mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
-            #finish = time.process_time()
+            finish = time.process_time()
             break
         except Exception as ex:
             print(f"Error happaned {ex}")
-    return mc
+    return [mc, start, finish]
 
 def send(socket, msg):
     msg = json.dumps(msg)
@@ -287,10 +291,15 @@ def get_data(name):
 def loop():
     global ip
     counter = 0
+    avg = []
     while loop_run:
-        pcs.iterate(scann(ip))
+        res = scann(ip)
+        avg[0].append(res[2]-res[1])
+        pcs.iterate(res[0])
         if counter == 200:
             get_ip()
+            print(f'Average scann time: {sum(avg)/len(avg)}')
+            avg = []
             counter = -1
         counter += 1
         time.sleep(0.2)
