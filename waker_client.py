@@ -19,7 +19,7 @@ class UI:
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
             [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")]
         ]
-        self.window = sg.Window("Warning", layout)
+        self.window = sg.Window("Warning", layout, finalize=True)
         self.read = self.window.read
         self.is_running = True
         
@@ -54,37 +54,46 @@ def counter(window):
             execute_command()
 
 def get_ip():
-    global ip
+    global IP
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
-    ip = s.getsockname()[0]
+    IP = s.getsockname()[0]
     s.close()
 
-def retrive(socket):
+def retrive(_socket):
     ret = ""
     try:
         while True: 
-            size = int(socket.recv(1).decode('utf-8'))
-            data = socket.recv(size).decode('utf-8')
-            if data == '\n':
-                break
+            size = int(_socket.recv(1).decode('utf-8'))
+            data = _socket.recv(size).decode('utf-8')
+            if data == '\n': break
             ret += data
+        print(f'Message: {ret}')
         return json.loads(ret)
     except Exception as ex:
         print(ex)
         return None
 
 def execute_command():
-    if COMMAND is not None: run(COMMAND)
+    if COMMAND is not None:
+        globals()["THREAD_RUNNING"] = False
+        run(COMMAND)
 
 if __name__ == "__main__":
+    shutdown=sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
+    print(f'Shutdown: {shutdown}')
+    _sleep=sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
+    print(f'Sleep: {_sleep}')
+    print(f'MAC: {MAC}')
+    get_ip()
+    _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    _socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    _socket.bind((IP, 666))
+    _socket.listen()
     while True:
-        get_ip()
-        _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        _socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        _socket.bind((IP, 666))
-        command = retrive(_socket)
-        if command == sha256(f"SHUTDOWN{MAC}").hexdigest():
+        conn, _ = _socket.accept()
+        command = retrive(conn)
+        if command == shutdown:
             globals()["COMMAND"] = "shutdown /s /t 0"
             globals()["THREAD_RUNNING"] = True
             window = UI("shutdown")
@@ -95,8 +104,8 @@ if __name__ == "__main__":
             else:
                 globals()["COMMAND"] = None
                 globals()["THREAD_RUNNING"] = True
-        elif command == sha256(f"SLEEP{MAC}").hexdigest():
-            globals()["COMMAND"] = "shutdown /h /t 0"
+        elif command == _sleep:
+            globals()["COMMAND"] = "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
             globals()["THREAD_RUNNING"] = True
             window = UI("sleep")
             bg = threading.Thread(target=counter, args=[window,])

@@ -45,7 +45,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was_online":False, "wake time":None, 'alert on discord':dc}
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was_online":False, "wake time":None, 'alert on discord':dc, 'pc_ip':None}
         if id is None: self.id += 0x1
         return False
 
@@ -97,6 +97,7 @@ class computers:
             if PC_Online and not self.stored[phone]['was_online']:
                 self.window.update_UI(self)
                 self.stored[phone]['was_online'] = True
+            if PC_Online and self.stored[phone]['pc_ip'] is None:
                 self.stored[phone]["pc_ip"] = resoults[self.stored[phone]['pc']]
             elif not PC_Online:
                 self.stored[phone]["pc_ip"] = None
@@ -144,7 +145,7 @@ class computers:
         with open("export.json", 'r', encoding='utf-8') as f:
             tmp = json.load(f)
         for item in tmp:
-            self.add_new(item["pc"], item['phone'], item['name'], item['dc'])
+            self.add_new(item["pc"], item['phone'], item['name'], (item['dc'] if 'dc' in item else None))
 
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
@@ -245,7 +246,7 @@ def shutdown_pc(phone, sleep=False):
         _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         _socket.connect((IP, 666))
         command="SHUTDOWN" if not sleep else "SLEEP"
-        send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc']}".encode("utf-8")).hexdigest())
+        send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc'].lower()}".encode("utf-8")).hexdigest())
     except Exception as ex: print(ex)
 
 def scann(_ip):
