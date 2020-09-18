@@ -19,7 +19,7 @@ class UI:
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
             [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")]
         ]
-        self.window = sg.Window("Warning", layout, finalize=True)
+        self.window = sg.Window("Warning", layout, finalize=True, force_toplevel=True, keep_on_top=True)
         self.read = self.window.read
         self.is_running = True
         
