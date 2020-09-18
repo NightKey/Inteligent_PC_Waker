@@ -35,7 +35,7 @@ class computers:
             tmp = subprocess.call(command, stdout=dnull) == 0
         return tmp
 
-    def add_new(self, address, phone_address, name, id=None):
+    def add_new(self, address, phone_address, name, dc=None, id=None):
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
@@ -45,7 +45,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was_online":False, "wake time":None}
+        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was_online":False, "wake time":None, 'alert on discord':dc}
         if id is None: self.id += 0x1
         return False
 
@@ -55,7 +55,7 @@ class computers:
         """
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and not item['is_online'] else 'Online' if item['is_online'] else 'Offline'}")
+            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and (not item['was_online'] or (item['wake time'] is not None and datetime.now() - item['wake time'] < timedelta(minutes=2))) else 'Online' if item['is_online'] else 'Offline'}")
         return ret
 
     def __len__(self):
@@ -136,7 +136,7 @@ class computers:
         print(f"{self.stored[phone]['name']} Phone offline")
     
     def save_to_json(self):
-        out = [{'phone':phone, 'pc':values['pc'], 'name':values['name']} for phone, values in self.stored.items()]
+        out = [{'phone':phone, 'pc':values['pc'], 'name':values['name'], "dc":values["alert on discord"]} for phone, values in self.stored.items()]
         with open('export.json', 'w', encoding='utf-8') as f:
             json.dump(out, f)
 
@@ -144,7 +144,7 @@ class computers:
         with open("export.json", 'r', encoding='utf-8') as f:
             tmp = json.load(f)
         for item in tmp:
-            self.add_new(item["pc"], item['phone'], item['name'])
+            self.add_new(item["pc"], item['phone'], item['name'], item['dc'])
 
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
@@ -153,13 +153,14 @@ class computers:
         return True
 
 class data_edit:
-    def __init__(self, title, sender=None, pc=None, id=None, name=None):
+    def __init__(self, title, sender=None, pc=None, id=None, name=None, dc=None):
         """For editing the data
         """
         layout = [
             [sg.Text("Telefon MAC címe"), sg.In(default_text=(sender if sender is not None else ''), key="SENDER")],
             [sg.Text("PC MAC címe"), sg.In(default_text=(pc if pc is not None else ''), key="PC")],
             [sg.Text("Megjelenítendő név"), sg.In(default_text=(name if name is not None else ''), key="NAME")],
+            [sg.Text("Discord név", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van"), sg.In(default_text=(dc if dc is not None else ''), key="DC", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van")],
             [sg.Button("Mégsem", key="CANCLE"), sg.Button("Kész", key="FINISHED")]
         ]
         self.window = sg.Window(title, layout)
@@ -177,7 +178,7 @@ class data_edit:
             return None
         elif event == "FINISHED":
             self.Close()
-            return [values["SENDER"], values["PC"], self.id, values["NAME"]]
+            return [values["SENDER"], values["PC"], self.id, values["NAME"], values['DC']]
 
     def show(self):
         while self.is_running:
@@ -216,7 +217,7 @@ class main_window:
             else:
                 if self.selected is not None:
                     data = self.get_items(self.selected)
-                    tmp = data_edit("Szerkesztés", data[0], data[1]["pc"], data[1]["id"], data[1]["name"])
+                    tmp = data_edit("Szerkesztés", data[0], data[1]["pc"], data[1]["id"], data[1]["name"], data[1]["alert on discord"])
                     self.selected = None
             new_data = tmp.show()
             if new_data is not None:
@@ -251,7 +252,7 @@ def scann(_ip):
     ip = _ip.split(".")
     ip[-1] = "2-24"
     ip = '.'.join(ip)
-    #start = time.process_time()
+    start = time.process_time()
     scanner = nmap.PortScanner()
     mc = {}
     while True:
@@ -261,11 +262,11 @@ def scann(_ip):
             for ip in ip_s["scan"].values():
                 if ip["addresses"]["ipv4"] != _ip:
                     mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
-            #finish = time.process_time()
+            finish = time.process_time()
             break
         except Exception as ex:
             print(f"Error happaned {ex}")
-    return mc
+    return [mc, start, finish]
 
 def send(socket, msg):
     msg = json.dumps(msg)
@@ -284,14 +285,22 @@ def get_data(name):
     key = pcs.get_by_name(name)
     return [key, pcs[key]]
 
+def avg(inp):
+    return sum(inp)/len(inp)
+
 def loop():
     global ip
     counter = 0
+    _avg = []
     while loop_run:
-        pcs.iterate(scann(ip))
+        ret = scann(ip)
+        pcs.iterate(ret[0])
+        _avg.append(ret[2]-ret[1])
         if counter == 200:
             get_ip()
             counter = -1
+            print(f'Average scann time: {avg(_avg)}')
+            _avg = []
         counter += 1
         time.sleep(0.2)
 
