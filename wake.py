@@ -188,10 +188,10 @@ class data_edit:
         return ret
 
 class main_window:
-    def __init__(self, pcs, call_back, delete, get_items, ui_wake):
+    def __init__(self, pcs, call_back, delete, get_items, ui_wake, shutdown_pc):
         layout = [
             [sg.Listbox(values=pcs, key="PCS", size=(75,25), enable_events=True)],
-            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Button("Ébresztés", key="WAKE")]
+            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS'], key="SELECTION"), sg.Button("Csináld", key="RUN")]
         ]
         self.window = sg.Window("IPW", layout, finalize=True)
         self.read = self.window.read
@@ -200,6 +200,7 @@ class main_window:
         self.delete = delete
         self.get_items = get_items
         self.ui_wake = ui_wake
+        self.shutdown_pc = shutdown_pc
         self.selected = None
 
     def work(self, event, values):
@@ -223,9 +224,15 @@ class main_window:
             new_data = tmp.show()
             if new_data is not None:
                 self.call_back(event, new_data)
-        elif event == "WAKE":
+        elif event == "RUN":
             if self.selected is not None:
-                self.update_UI(self.ui_wake(self.selected))
+                if values['SELECTION'] == "ÉBRESZTÉS":
+                    self.update_UI(self.ui_wake(self.selected))
+                elif values['SELECTION'] == "KIKAPCSOLÁS":
+                    self.shutdown_pc(self.selected)
+                elif values['SELECTION'] == "ALTATÁS":
+                    self.shutdown_pc(self.selected, True)
+
 
     def update_UI(self, pcs):
         self.window["PCS"].Update(pcs)
@@ -241,6 +248,7 @@ class main_window:
 
 def shutdown_pc(phone, sleep=False):
     try: 
+        if phone not in pcs: phone = pcs.get_by_name(phone)
         IP = pcs[phone]['pc_ip']
         if IP is None: return
         _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -379,7 +387,7 @@ else:
     if path.exists('export.json'):
         pcs.import_from_json()
         save()
-window = main_window(pcs, call_back, delete, get_data, UI_wake)
+window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
 pcs.set_window(window)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
