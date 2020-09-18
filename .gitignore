@@ -1,2 +1,5 @@
 pcs
 *.json
+*build*
+*.spec
+*__py*
