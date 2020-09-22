@@ -15,6 +15,7 @@ THREAD_RUNNING = False
 class UI:
     def __init__(self, text):
         self.counter = 30
+        sg.theme("dark")
         layout = [
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
             [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")]
@@ -97,21 +98,19 @@ if __name__ == "__main__":
             globals()["COMMAND"] = "shutdown /s /t 0"
             globals()["THREAD_RUNNING"] = True
             window = UI("shutdown")
-            bg = threading.Thread(target=counter, args=[window,])
-            bg.name = "COUNTER"
-            bg.start()
-            if window.show(): execute_command()
-            else:
-                globals()["COMMAND"] = None
-                globals()["THREAD_RUNNING"] = True
         elif command == _sleep:
             globals()["COMMAND"] = "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
             globals()["THREAD_RUNNING"] = True
             window = UI("sleep")
-            bg = threading.Thread(target=counter, args=[window,])
-            bg.name = "COUNTER"
-            bg.start()
-            if window.show(): execute_command()
-            else:
-                globals()["COMMAND"] = None
-                globals()["THREAD_RUNNING"] = True
+        bg = threading.Thread(target=counter, args=[window,])
+        bg.name = "COUNTER"
+        bg.start()
+        if window.show():
+            window.close()
+            del window
+            execute_command()
+        else:
+            window.close()
+            globals()["COMMAND"] = None
+            globals()["THREAD_RUNNING"] = True
+            del window

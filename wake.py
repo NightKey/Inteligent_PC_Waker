@@ -189,9 +189,10 @@ class data_edit:
 
 class main_window:
     def __init__(self, pcs, call_back, delete, get_items, ui_wake, shutdown_pc):
+        sg.theme("dark")
         layout = [
             [sg.Listbox(values=pcs, key="PCS", size=(75,25), enable_events=True)],
-            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS'], key="SELECTION"), sg.Button("Csináld", key="RUN")]
+            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS'], key="SELECTION", size=(20,1)), sg.Button("Csináld", key="RUN")]
         ]
         self.window = sg.Window("IPW", layout, finalize=True)
         self.read = self.window.read
