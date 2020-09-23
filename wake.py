@@ -121,7 +121,7 @@ class computers:
             self.wake(key)
 
     def get_random_welcome(self):
-        with open("welcomes.txt", 'r') as f:
+        with open("welcomes.txt", 'r', encoding="utf-8") as f:
             data = f.read(-1).split('\n')
         return random.choice(data)
 
