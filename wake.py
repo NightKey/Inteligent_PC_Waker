@@ -74,7 +74,7 @@ class computers:
 
     def changed(self, data):
         del self.stored[self.get_by_id(data[2])]
-        self.add_new(data[1], data[0], data[3], data[2])
+        self.add_new(address=data[1], phone_address=data[0], name=data[3], dc=data[4], id=data[2])
     
     def remove(self, other):
         del self.stored[other]
