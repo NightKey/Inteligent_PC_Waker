@@ -386,6 +386,9 @@ def UI_wake(name):
     pcs.wake(pcs.get_by_name(name))
     return pcs
 
+def api_send(msg, user=None):
+    _api.send_message(msg, user)
+
 _api = smdb_api.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate()
 _api.create_function("wake", "Wakes up the connected PC's\nUsage: &wake <Added PC Name>\nCategory: NETWORK", UI_wake, True)
@@ -395,7 +398,7 @@ if path.exists("pcs"):
     with open("pcs", 'br') as f:
         pcs = pickle.load(f)
 else:
-    pcs = computers(_api.send_message)
+    pcs = computers(api_send)
     if path.exists('export.json'):
         pcs.import_from_json()
         save()
