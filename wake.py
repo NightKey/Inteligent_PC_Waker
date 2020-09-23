@@ -343,9 +343,10 @@ def add_new_pc(address, phone):
     pcs.add_new(address, phone)
 
 def call_back(_type, data):
+    #data = [values["SENDER"], values["PC"], self.id, values["NAME"], values['DC']]
     global pcs
     if _type == "NEW":
-        ret = pcs.add_new(data[1], data[0], data[3], data[2])
+        ret = pcs.add_new(data[1], data[0], data[3], data[4], data[2])
     elif _type == "EDIT":
         ret = pcs.changed(data)
     if not ret: window.update_UI(pcs)
