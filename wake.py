@@ -1,5 +1,5 @@
 from wakeonlan import send_magic_packet
-import re, socket, nmap, threading, time, pickle, json
+import re, socket, nmap, threading, time, pickle, json, smdb_api, random
 from getmac import get_mac_address
 from os import path, devnull
 import platform    # For getting the operating system name
@@ -14,10 +14,11 @@ class computers:
     """Stores multiple computer-phone address pairs.
     Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
     """
-    def __init__(self):
+    def __init__(self, send = None):
         self.stored = {}
         self.id = 0x0
         self.window = None
+        self.send = send
 
     def set_window(self, window):
         self.window = window
@@ -119,6 +120,11 @@ class computers:
         for key in self.stored.keys():
             self.wake(key)
 
+    def get_random_welcome(self):
+        with open("welcomes.txt", 'r') as f:
+            data = f.read(-1).split('\n')
+        return random.choice(data)
+
     def wake(self, phone):
         print(f"Waking {self.stored[phone]['name']}")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
@@ -131,6 +137,8 @@ class computers:
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         self.stored[phone]["was wakened"] = True
         self.stored[phone]["wake time"] = datetime.now()
+        if self.send is not None:
+            self.send(self.get_random_welcome(), user=self.stored[phone]["alert on discord"])
     
     def reset_state(self, phone):
         self.stored[phone]["was wakened"] = False
@@ -356,6 +364,7 @@ def console():
         if "wake" in inp:
             name = inp.split(" ")[-1]
             pcs.wake(pcs.get_by_name(name))
+            window.update_UI(pcs)
         elif "morning" in inp:
             pcs.wake_everyone()
         elif "stop" in inp:
@@ -377,14 +386,16 @@ def UI_wake(name):
     pcs.wake(pcs.get_by_name(name))
     return pcs
 
-#_api = API("Waker", "")
+_api = smdb_api.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
+_api.validate()
+_api.create_function("wake", "Wakes up the connected PC's\nUsage: &wake <Added PC Name>\nCategory: NETWORK", UI_wake, True)
 ip = None
 get_ip()
 if path.exists("pcs"):
     with open("pcs", 'br') as f:
         pcs = pickle.load(f)
 else:
-    pcs = computers()
+    pcs = computers(_api.send_message)
     if path.exists('export.json'):
         pcs.import_from_json()
         save()
