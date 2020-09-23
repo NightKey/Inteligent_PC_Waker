@@ -96,7 +96,7 @@ class computers:
             PC_Online = (data["pc"].upper() in resoults and self.ping(resoults[data["pc"].upper()]))
             self.stored[phone]["is_online"] = PC_Online
             if PC_Online and not self.stored[phone]['was_online']:
-                self.window.update_UI(self)
+                self.window()
                 self.stored[phone]['was_online'] = True
             if PC_Online and self.stored[phone]['pc_ip'] is None:
                 self.stored[phone]["pc_ip"] = resoults[self.stored[phone]['pc']]
@@ -106,14 +106,14 @@ class computers:
                 data["phone last online"] = datetime.now()
                 if not data["was wakened"] and not PC_Online:
                     self.wake(phone)
-                    self.window.update_UI(self)
+                    self.window()
                 elif data["was wakened"] and not PC_Online and data['was_online']:
                     print(f"{data['name']} PC went offline.")
-                    self.window.update_UI(self)
+                    self.window()
                     self.stored[phone]['was_online'] = False
             elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
                 self.reset_state(phone)
-                self.window.update_UI(self)
+                self.window()
                 if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
             
     def wake_everyone(self):
@@ -386,6 +386,9 @@ def UI_wake(name):
     pcs.wake(pcs.get_by_name(name))
     return pcs
 
+def ui_update():
+    window.update_UI(pcs)
+
 def api_send(msg, user=None):
     _api.send_message(msg, user)
 
@@ -403,7 +406,7 @@ else:
         pcs.import_from_json()
         save()
 window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
-pcs.set_window(window)
+pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()

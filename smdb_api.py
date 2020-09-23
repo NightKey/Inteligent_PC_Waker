@@ -132,7 +132,7 @@ class API:
         """Listens for incoming messages, and stops when the program stops running
         """
         while self.running:
-            while self.valid and process_time() - self.last_hearth_beat < 0.12:
+            while self.valid and (self.last_hearth_beat is None or process_time() - self.last_hearth_beat < 0.12):
                 if not self.running: break
                 msg = self.retrive()
                 #print(msg)
