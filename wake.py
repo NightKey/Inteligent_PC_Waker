@@ -284,7 +284,6 @@ class console:
             self.pointer -= 1
         elif self.pointer < len(self.shown) and not up:
             self.pointer += 1
-        self.window["SCREEN"].Update(selected=self.pointer)
     
     def work(self, event, values):
         if event == sg.WINDOW_CLOSED:
@@ -449,10 +448,6 @@ def ui_update():
 def api_send(msg, user=None):
     _api.send_message(msg, user)
 
-_api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
-_api.validate()
-_api.create_function("wake", "Wakes up the user's connected PC's\nCategory: NETWORK", UI_wake, API.SENDER)
-_api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", shutdown_pc, API.SENDER)
 ip = None
 get_ip()
 if path.exists("pcs"):
@@ -470,7 +465,8 @@ pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
-terminal = threading.Thread(target=_console)
-terminal.name = "Terminal"
-terminal.start()
+_api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
+_api.validate()
+_api.create_function("wake", "Wakes up the user's connected PC's\nCategory: NETWORK", UI_wake, API.SENDER)
+_api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", shutdown_pc, API.SENDER)
 main()
