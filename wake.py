@@ -82,6 +82,7 @@ class computers:
 
     def get_by_name(self, name):
         name = name.strip()
+        print(f"Searching for {name}")
         for key, values in self.stored.items():
             if values["name"] == name or values["alert on discord"] == name:
                 return key
@@ -394,13 +395,10 @@ def ui_update():
 def api_send(msg, user=None):
     _api.send_message(msg, user)
 
-def discord_shutdown(user):
-    shutdown_pc(pcs.get_by_name(user))
-
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate()
 _api.create_function("wake", "Wakes up the user's connected PC's\nCategory: NETWORK", UI_wake, API.SENDER)
-_api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", discord_shutdown, API.SENDER)
+_api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", shutdown_pc, API.SENDER)
 ip = None
 get_ip()
 if path.exists("pcs"):
