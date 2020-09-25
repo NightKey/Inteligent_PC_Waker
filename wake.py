@@ -257,6 +257,55 @@ class main_window:
         self.window.Close()
         self.is_running = False
 
+class console:
+    def __init__(self, call_back):
+        layout = [
+            [sg.Listbox(values=[], key="SCREEN", size=(75,25))],
+            [sg.In(key="INPUT", size=(60, 1)), sg.Button("Send", key="SEND", size=(15,1))]
+        ]
+        self.window = sg.Window("Console", layout, return_keyboard_events=True)
+        self.read = self.window.read
+        self.is_running = True
+        self.shown = []
+        self.call_back = call_back
+        self.pointer = 0
+    
+    def close(self):
+        self.is_running = False
+        self.window.Close()
+
+    def print(self, text):
+        self.shown.append(text)
+        self.pointer = len(self.shown)
+        self.window["SCREEN"].Update(self.shown)
+    
+    def move_pointer(self, up=True):
+        if self.pointer > 0 and up:
+            self.pointer -= 1
+        elif self.pointer < len(self.shown) and not up:
+            self.pointer += 1
+        self.window["SCREEN"].Update(selected=self.pointer)
+    
+    def work(self, event, values):
+        if event == sg.WINDOW_CLOSED:
+            self.close()
+        elif event == "SEND" or event == "\r":
+            self.print(values["INPUT"])
+            self.call_back(values["INPUT"])
+            self.window["INPUT"].Update("")
+        elif event == "Up:38":
+            self.move_pointer()
+            self.window["INPUT"].Update(self.shown[self.pointer])
+        elif event == "Down:40":
+            self.move_pointer(False)
+            self.window["INPUT"].Update(self.shown[self.pointer])
+    
+    def show(self):
+        while self.is_running:
+            self.work(*self.read())
+        
+
+
 def shutdown_pc(phone, sleep=False):
     try: 
         print(f'Shutdown {phone}')
@@ -328,7 +377,10 @@ def loop():
 def main():
     global loop_run
     global window
-    window.show()
+    global console_window
+    while True:
+        window.work(*window.read(timeout=1))
+        console_window.work(*console_window.read(timeout=1))
     loop_run = False
 
 def save():
@@ -361,7 +413,7 @@ def delete(name):
     pcs.remove(pcs.get_by_name(name))
     window.update_UI(pcs)
 
-def console():
+def _console():
     global loop_run
     while loop_run:
         inp = input(':')
@@ -412,11 +464,13 @@ else:
         pcs.import_from_json()
         save()
 window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
+console_window = console(_console)
+print = console_window.print
 pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
-terminal = threading.Thread(target=console)
+terminal = threading.Thread(target=_console)
 terminal.name = "Terminal"
 terminal.start()
 main()
