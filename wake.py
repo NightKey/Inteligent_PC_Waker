@@ -259,6 +259,7 @@ class main_window:
 
 def shutdown_pc(phone, sleep=False):
     try: 
+        print(f'Shutdown {phone}')
         if phone not in pcs: phone = pcs.get_by_name(phone)
         IP = pcs[phone]['pc_ip']
         if IP is None: return
@@ -386,6 +387,7 @@ def console():
                 print(values.split(" - ")[0])
 
 def UI_wake(name):
+    print(f"Wake {name}")
     pcs.wake(pcs.get_by_name(name))
     return pcs
 
