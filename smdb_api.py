@@ -148,7 +148,7 @@ class API:
                     if retrived_call != []:
                         self.call_list[retrived_call[0]](*retrived_call[1:])
                         retrived_call = []
-                    sleep(0.01)
+                    sleep(0.1)
                     continue
                 if self.sending:
                     self.buffer.append(msg)

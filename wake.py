@@ -446,7 +446,9 @@ def ui_update():
     window.update_UI(pcs)
 
 def api_send(msg, user=None):
-    _api.send_message(msg, user)
+    try:
+        _api.send_message(msg, user)
+    except: print("API not avaleable!")
 
 ip = None
 get_ip()
@@ -465,7 +467,7 @@ pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
-_api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", max_delay=2)
+_api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate()
 _api.create_function("wake", "Wakes up the user's connected PC's\nCategory: NETWORK", UI_wake, API.SENDER)
 _api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", shutdown_pc, API.SENDER)
