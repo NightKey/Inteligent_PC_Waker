@@ -412,30 +412,27 @@ def delete(name):
     pcs.remove(pcs.get_by_name(name))
     window.update_UI(pcs)
 
-def _console():
-    global loop_run
-    while loop_run:
-        inp = input(':')
-        if "wake" in inp:
-            name = inp.split(" ")[-1]
-            pcs.wake(pcs.get_by_name(name))
-            window.update_UI(pcs)
-        elif "morning" in inp:
-            pcs.wake_everyone()
-        elif "stop" in inp:
-            loop_run = False
-            pcs.save_to_json()
-            save()
-            window.Close()
-        elif "shutdown" in inp:
-            name = inp.split(" ")[-1]
-            shutdown_pc(pcs.get_by_name(name))
-        elif "sleep" in inp:
-            name = inp.split(" ")[-1]
-            shutdown_pc(pcs.get_by_name(name), True)
-        elif "list" in inp:
-            for values in pcs:
-                print(values.split(" - ")[0])
+def _console(inp):
+    if "wake" in inp:
+        name = inp.split(" ")[-1]
+        pcs.wake(pcs.get_by_name(name))
+        window.update_UI(pcs)
+    elif "morning" in inp:
+        pcs.wake_everyone()
+    elif "stop" in inp:
+        pcs.save_to_json()
+        save()
+        window.Close()
+        console_window.close()
+    elif "shutdown" in inp:
+        name = inp.split(" ")[-1]
+        shutdown_pc(pcs.get_by_name(name))
+    elif "sleep" in inp:
+        name = inp.split(" ")[-1]
+        shutdown_pc(pcs.get_by_name(name), True)
+    elif "list" in inp:
+        for values in pcs:
+            print(values.split(" - ")[0])
 
 def UI_wake(name):
     print(f"Wake {name}")
