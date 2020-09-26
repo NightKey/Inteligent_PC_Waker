@@ -117,6 +117,8 @@ class computers:
                 self.reset_state(phone)
                 self.window()
                 if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
+            elif data["wake time"] is not None and datetime.now()-data["wake time"] >= timedelta(hours=1) and data['pc_ip'] is not None:
+                shutdown_pc(phone)
             
     def wake_everyone(self):
         for key in self.stored.keys():
