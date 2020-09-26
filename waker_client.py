@@ -20,19 +20,19 @@ class UI:
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
             [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")]
         ]
-        self.window = sg.Window("Warning", layout, finalize=True, force_toplevel=True, keep_on_top=True)
+        self.window = sg.Window("Warning", layout, finalize=True, keep_on_top=True)
         self.read = self.window.read
         self.is_running = True
         
     def count_down(self):
         self.counter -= 1
-        if self.counter < 0:
+        if self.counter == 0:
             return DO
-        self.window["COUNTER"].Update(str(self.counter))
         return DONT
 
     def close(self):
         self.is_running = False
+        self.window.RootNeedsDestroying = True
         self.window.Close()
 
     def work(self, event):
@@ -44,8 +44,12 @@ class UI:
             return DO
 
     def show(self):
-        event, _ = self.read()
-        return self.work(event)
+        while True:
+            event, _ = self.read(timeout=1)
+            if event != "__TIMEOUT__":
+                return self.work(event)
+            self.window["COUNTER"].Update(str(self.counter))
+            
 
 def counter(window):
     while THREAD_RUNNING:
@@ -112,5 +116,6 @@ if __name__ == "__main__":
         else:
             window.close()
             globals()["COMMAND"] = None
-            globals()["THREAD_RUNNING"] = True
+            globals()["THREAD_RUNNING"] = False
             del window
+            del bg
