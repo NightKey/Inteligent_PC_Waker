@@ -98,7 +98,6 @@ class computers:
             PC_Online = (data["pc"].upper() in resoults and self.ping(resoults[data["pc"].upper()]))
             self.stored[phone]["is_online"] = PC_Online
             if PC_Online and not self.stored[phone]['was_online']:
-                self.window()
                 self.stored[phone]['was_online'] = True
             if PC_Online and self.stored[phone]['pc_ip'] is None:
                 self.stored[phone]["pc_ip"] = resoults[self.stored[phone]['pc']]
@@ -106,19 +105,22 @@ class computers:
                 self.stored[phone]["pc_ip"] = None
             if phone.upper() in resoults:
                 data["phone last online"] = datetime.now()
-                if not data["was wakened"] and not PC_Online:
-                    self.wake(phone)
-                    self.window()
+                if not data["was wakened"]:
+                    if PC_Online:
+                        data["was wakened"] = True
+                        data["wake time"] = datetime.now()
+                    else:
+                        self.wake(phone)
                 elif data["was wakened"] and not PC_Online and data['was_online']:
                     print(f"{data['name']} PC went offline.")
-                    self.window()
                     self.stored[phone]['was_online'] = False
             elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
                 self.reset_state(phone)
-                self.window()
                 if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
             elif data["wake time"] is not None and datetime.now()-data["wake time"] >= timedelta(hours=1) and data['pc_ip'] is not None:
                 shutdown_pc(phone)
+        else:
+            self.window()
             
     def wake_everyone(self):
         for key in self.stored.keys():
