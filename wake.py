@@ -217,6 +217,7 @@ class main_window:
         self.ui_wake = ui_wake
         self.shutdown_pc = shutdown_pc
         self.selected = None
+        self.request_update = False
 
     def work(self, event, values):
         if event == sg.WINDOW_CLOSED:
@@ -247,10 +248,14 @@ class main_window:
                     self.shutdown_pc(self.selected)
                 elif values['SELECTION'] == "ALTATÁS":
                     self.shutdown_pc(self.selected, True)
+        elif event == "__TIMEOUT__":
+            if self.request_update:
+                self.window["PCS"].Update(pcs)
+                self.request_update = False
 
 
     def update_UI(self, pcs):
-        self.window["PCS"].Update(pcs)
+        self.request_update = True
 
     def show(self):
         while self.is_running:
@@ -281,7 +286,6 @@ class console:
     def print(self, text):
         self.shown.append(text)
         self.pointer = len(self.shown)
-        self.window["SCREEN"].Update(self.shown)
     
     def move_pointer(self, up=True):
         if self.pointer > 0 and up:
@@ -302,12 +306,12 @@ class console:
         elif event == "Down:40":
             self.move_pointer(False)
             self.window["INPUT"].Update(self.shown[self.pointer])
+        elif event == "__TIMEOUT__":
+            self.window["SCREEN"].Update(self.shown)
     
     def show(self):
         while self.is_running:
             self.work(*self.read())
-        
-
 
 def shutdown_pc(phone, sleep=False):
     try: 
@@ -428,6 +432,7 @@ def _console(inp):
         save()
         window.Close()
         console_window.close()
+        _api.close()
     elif "shutdown" in inp:
         name = inp.split(" ")[-1]
         shutdown_pc(pcs.get_by_name(name))
