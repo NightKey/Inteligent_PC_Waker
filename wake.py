@@ -117,7 +117,7 @@ class computers:
             elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
                 self.reset_state(phone)
                 if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
-            elif data["wake time"] is not None and datetime.now()-data["wake time"] >= timedelta(hours=1) and data['pc_ip'] is not None:
+            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(hours=1) and data['pc_ip'] is not None:
                 shutdown_pc(phone)
         else:
             self.window()
@@ -316,7 +316,7 @@ class console:
 def shutdown_pc(phone, sleep=False):
     try: 
         print(f'Shutdown {phone}')
-        if phone not in pcs: phone = pcs.get_by_name(phone)
+        if phone not in pcs.stored: phone = pcs.get_by_name(phone)
         IP = pcs[phone]['pc_ip']
         if IP is None: return
         _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
