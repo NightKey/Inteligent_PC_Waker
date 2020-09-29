@@ -84,13 +84,29 @@ def execute_command():
         globals()["THREAD_RUNNING"] = False
         run(COMMAND)
 
+def unused_test():
+    from win32api import GetLastInputInfo
+    last_input = GetLastInputInfo()
+    global is_active
+    while True:
+        sleep(1)
+        used = last_input != GetLastInputInfo()
+        if used and not is_active:
+            is_active = True
+        elif is_active and not used:
+            is_active = False
+
 if __name__ == "__main__":
+    is_active = True
     shutdown=sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
     print(f'Shutdown: {shutdown}')
     _sleep=sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
     print(f'Sleep: {_sleep}')
     print(f'MAC: {MAC}')
     get_ip()
+    usage = threading.Thread(target=unused_test)
+    usage.name = "Usage Test"
+    usage.start()
     _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     _socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     _socket.bind((IP, 666))
@@ -98,6 +114,7 @@ if __name__ == "__main__":
     while True:
         conn, _ = _socket.accept()
         command = retrive(conn)
+        if is_active: continue
         if command == shutdown:
             globals()["COMMAND"] = "shutdown /s /t 0"
             globals()["THREAD_RUNNING"] = True
