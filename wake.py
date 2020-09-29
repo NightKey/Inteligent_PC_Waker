@@ -119,6 +119,7 @@ class computers:
                 if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
             elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(hours=1) and data['pc_ip'] is not None:
                 shutdown_pc(phone)
+                self.stored[phone]["phone last online"] = None
         else:
             self.window()
             
