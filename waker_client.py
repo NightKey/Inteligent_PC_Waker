@@ -102,11 +102,11 @@ if __name__ == "__main__":
         if command == shutdown:
             globals()["COMMAND"] = "shutdown /s /t 0"
             globals()["THREAD_RUNNING"] = True
-            window = UI("shutdown")
+            window = UI("Shutdown")
         elif command == _sleep:
             globals()["COMMAND"] = "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
             globals()["THREAD_RUNNING"] = True
-            window = UI("sleep")
+            window = UI("Sleep")
         bg = threading.Thread(target=counter, args=[window,conn,])
         bg.name = "COUNTER"
         bg.start()
