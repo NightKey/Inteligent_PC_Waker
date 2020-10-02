@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 
 loop_run = True
+SMALL = 0
+PARTIAL = 1
+FULL = 2
 
 class computers:
     """Stores multiple computer-phone address pairs.
@@ -47,7 +50,7 @@ class computers:
             return "PHONE" # TypeError("'phone_address' should be a MAC address")
         if phone_address in self.stored:
             return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is_online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was_online":False, "wake time":None, 'alert on discord':dc, 'pc_ip':None}
+        self.stored[phone_address] = {"pc":address, 'is online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was online":False, "wake time":None, 'alert on discord':dc, 'pc ip':None, 'turn off sent':None, "manually turned off":False}
         if id is None: self.id += 0x1
         return False
 
@@ -57,7 +60,7 @@ class computers:
         """
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and (not item['was_online'] or (item['wake time'] is not None and datetime.now() - item['wake time'] < timedelta(minutes=2))) else 'Online' if item['is_online'] else 'Offline'}")
+            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and (not item['was online'] or (item['wake time'] is not None and datetime.now() - item['wake time'] < timedelta(minutes=2))) else 'Online' if item['is online'] else 'Offline'}")
         return ret
 
     def __len__(self):
@@ -96,30 +99,31 @@ class computers:
         if resoults == {}: return
         for phone, data in self.stored.items():
             PC_Online = (data["pc"].upper() in resoults and self.ping(resoults[data["pc"].upper()]))
-            self.stored[phone]["is_online"] = PC_Online
-            if PC_Online and not self.stored[phone]['was_online']:
-                self.stored[phone]['was_online'] = True
-            if PC_Online and self.stored[phone]['pc_ip'] is None:
-                self.stored[phone]["pc_ip"] = resoults[self.stored[phone]['pc']]
+            self.stored[phone]["is online"] = PC_Online
+            if PC_Online and not self.stored[phone]['was online']:
+                self.stored[phone]['was online'] = True
+            if PC_Online and self.stored[phone]['pc ip'] is None:
+                self.stored[phone]["pc ip"] = resoults[self.stored[phone]['pc']]
             elif not PC_Online:
-                self.stored[phone]["pc_ip"] = None
+                self.stored[phone]["pc ip"] = None
             if phone.upper() in resoults:
                 data["phone last online"] = datetime.now()
-                if not data["was wakened"]:
+                if not data["was wakened"] and not data['manually turned off']:
                     if PC_Online:
                         data["was wakened"] = True
                         data["wake time"] = datetime.now()
                     else:
                         self.wake(phone)
-                elif data["was wakened"] and not PC_Online and data['was_online']:
-                    print(f"{data['name']} PC went offline.")
-                    self.stored[phone]['was_online'] = False
+                elif data["was wakened"] and not PC_Online and data['was online']:
+                    self.reset_state(phone, PARTIAL)
             elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
-                self.reset_state(phone)
-                if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=6): shutdown_pc(phone)
-            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(hours=1) and data['pc_ip'] is not None:
-                shutdown_pc(phone)
-                self.stored[phone]["phone last online"] = None
+                self.reset_state(phone, SMALL)
+                if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=7): shutdown_pc(phone)
+            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(hours=2):
+                if data['pc ip'] is not None and (data['turn off sent'] is None or datetime.now()-data['turn off sent'] > timedelta(minutes=1)):
+                    shutdown_pc(phone)
+                    self.stored[phone]['turn off sent'] = datetime.now()
+                self.reset_state(phone, FULL)
         else:
             self.window()
             
@@ -147,9 +151,18 @@ class computers:
         if self.send is not None:
             self.send(self.get_random_welcome(), user=self.stored[phone]["alert on discord"])
     
-    def reset_state(self, phone):
-        self.stored[phone]["was wakened"] = False
-        print(f"{self.stored[phone]['name']} Phone offline")
+    def reset_state(self, phone, size):
+        if size is SMALL:
+            self.stored[phone]["was wakened"] = False
+            print(f"{self.stored[phone]['name']} Phone offline")
+        elif size is PARTIAL:
+            self.stored[phone]['was online'] = False
+            self.stored[phone]['manually turned off'] = True
+            print(f"{self.stored[phone]['name']} PC went offline.")
+        elif size is FULL:
+            self.stored[phone]["phone last online"] = None
+            self.stored[phone]['manually turned off'] = False
+            print(f"{self.stored[phone]['name']} state reseted")
     
     def save_to_json(self):
         out = [{'phone':phone, 'pc':values['pc'], 'name':values['name'], "dc":values["alert on discord"]} for phone, values in self.stored.items()]
@@ -314,16 +327,29 @@ class console:
         while self.is_running:
             self.work(*self.read())
 
+def retrive_confirmation(socket, name):
+    socket.settimeout(35)
+    r = socket.recv(1)
+    if r:
+        print(f"{name} PC executed the command")
+    elif r is None:
+        print(f"{name} socked timed out")
+    else:
+        print(f"{name} PC interrupted the command")
+
 def shutdown_pc(phone, sleep=False):
     try: 
         print(f'Shutdown {phone}')
         if phone not in pcs.stored: phone = pcs.get_by_name(phone)
-        IP = pcs[phone]['pc_ip']
+        IP = pcs[phone]['pc ip']
         if IP is None: return
         _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         _socket.connect((IP, 666))
         command="SHUTDOWN" if not sleep else "SLEEP"
         send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc'].lower()}".encode("utf-8")).hexdigest())
+        t = threading.Thread(target=retrive_confirmation, args=[_socket,globals()['pcs'][phone]['name'],])
+        t.name = f"Confirmation {globals()['pcs'][phone]['name']}"
+        t.start()
     except Exception as ex: print(ex)
 
 def scann(_ip):
