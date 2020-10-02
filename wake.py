@@ -329,7 +329,7 @@ class console:
 
 def retrive_confirmation(socket, name):
     socket.settimeout(35)
-    r = socket.recv(1)
+    r = socket.recv(1).decode("utf-8")
     if r:
         print(f"{name} PC executed the command")
     elif r is None:

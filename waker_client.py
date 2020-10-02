@@ -82,11 +82,10 @@ def retrive(_socket):
 def execute_command(connection):
     if COMMAND is not None:
         globals()["THREAD_RUNNING"] = False
-        connection.send(1)
+        connection.send('1'.encode(encoding='utf-8'))
         run(COMMAND)
 
 if __name__ == "__main__":
-    is_active = True
     shutdown=sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
     print(f'Shutdown: {shutdown}')
     _sleep=sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
@@ -100,7 +99,6 @@ if __name__ == "__main__":
     while True:
         conn, _ = _socket.accept()
         command = retrive(conn)
-        if is_active: continue
         if command == shutdown:
             globals()["COMMAND"] = "shutdown /s /t 0"
             globals()["THREAD_RUNNING"] = True
@@ -118,7 +116,7 @@ if __name__ == "__main__":
             execute_command(conn)
         else:
             window.close()
-            conn.send(0)
+            conn.send('0'.encode(encoding='utf-8'))
             globals()["COMMAND"] = None
             globals()["THREAD_RUNNING"] = False
             del window
