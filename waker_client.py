@@ -1,5 +1,6 @@
 from os import system as run
 from time import sleep
+from platform import system
 import socket, json, threading
 import PySimpleGUI as sg
 from getmac import get_mac_address as gma
@@ -13,8 +14,8 @@ COMMAND = None
 THREAD_RUNNING = False
 
 class UI:
-    def __init__(self, text):
-        self.counter = 30
+    def __init__(self, text, delay):
+        self.counter = int(delay) if delay is not None else 30
         sg.theme("dark")
         layout = [
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
@@ -89,7 +90,9 @@ if __name__ == "__main__":
     shutdown=sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
     print(f'Shutdown: {shutdown}')
     _sleep=sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
+    restart=sha256(f"RESTART{MAC}".encode('utf-8')).hexdigest()
     print(f'Sleep: {_sleep}')
+    print(f'Restart: {restart}')
     print(f'MAC: {MAC}')
     get_ip()
     _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -99,14 +102,23 @@ if __name__ == "__main__":
     while True:
         conn, _ = _socket.accept()
         command = retrive(conn)
+        conn.settimeout(0.5)
+        delay = retrive(conn)
         if command == shutdown:
-            globals()["COMMAND"] = "shutdown /s /t 0"
+            if system() == "Windows": globals()["COMMAND"] = "shutdown /s /t 0"
+            else: globals()["COMMAND"] = "shutdown -s -t 0"
             globals()["THREAD_RUNNING"] = True
-            window = UI("Shutdown")
+            window = UI("Shutdown", delay)
         elif command == _sleep:
-            globals()["COMMAND"] = "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
+            if system() == 'Windows': globals()["COMMAND"] = "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
+            else: globals()["COMMAND"] = "systemctl suspend"
             globals()["THREAD_RUNNING"] = True
-            window = UI("Sleep")
+            window = UI("Sleep", delay)
+        elif command == restart:
+            if system() == "Windows": globals()["COMMAND"] = "shutdown /r /t 0"
+            else: globals()["COMMAND"] = "shutdown -r -t 0"
+            globals()["THREAD_RUNNING"] = True
+            window = UI("Restart", delay)
         bg = threading.Thread(target=counter, args=[window,conn,])
         bg.name = "COUNTER"
         bg.start()
