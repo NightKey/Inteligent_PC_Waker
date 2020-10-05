@@ -266,7 +266,7 @@ class main_window:
         sg.theme("dark")
         layout = [
             [sg.Listbox(values=pcs, key="PCS", size=(75,25), enable_events=True)],
-            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS'], key="SELECTION", size=(20,1)), sg.Button("Csináld", key="RUN")]
+            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS', "ÚJRAINDÍTÁS"], default_value="ÉBRESZTÉS", key="SELECTION", size=(20,1)), sg.Button("Csináld", key="RUN")]
         ]
         self.window = sg.Window("IPW", layout, finalize=True)
         self.read = self.window.read
@@ -307,7 +307,9 @@ class main_window:
                 elif values['SELECTION'] == "KIKAPCSOLÁS":
                     self.shutdown_pc(self.selected)
                 elif values['SELECTION'] == "ALTATÁS":
-                    self.shutdown_pc(self.selected, True)
+                    self.shutdown_pc(self.selected, _command=SLEEP)
+                elif values['SELECTION'] == "ÚJRAINDÍTÁS":
+                    self.shutdown_pc(self.selected, _command=RESTART)
         elif event == "__TIMEOUT__":
             if self.request_update:
                 self.window["PCS"].Update(pcs)
@@ -377,15 +379,21 @@ class console:
 
 def retrive_confirmation(socket, name):
     socket.settimeout(35)
-    r = socket.recv(1).decode("utf-8")
-    if r:
-        print(f"{name} PC executed the command")
-    elif r is None:
-        print(f"{name} socked timed out")
-    else:
-        print(f"{name} PC interrupted the command")
+    try:
+        r = socket.recv(1).decode("utf-8")
+        if r:
+            print(f"{name} PC executed the command")
+        elif r is None:
+            print(f"{name} socked timed out")
+        else:
+            print(f"{name} PC interrupted the command")
+    except: print(f"{name} Socket error!")
 
-def shutdown_pc(phone, sleep=False):
+SHUTDOWN=0
+SLEEP=1
+RESTART=2
+
+def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
     try: 
         print(f'Shutdown {phone}')
         if phone not in pcs.stored: phone = pcs.get_by_name(phone)
@@ -393,8 +401,9 @@ def shutdown_pc(phone, sleep=False):
         if IP is None: return
         _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         _socket.connect((IP, 666))
-        command="SHUTDOWN" if not sleep else "SLEEP"
+        command="SHUTDOWN" if _command is SHUTDOWN else "SLEEP" if _command is SLEEP else 'RESTART'
         send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc'].lower()}".encode("utf-8")).hexdigest())
+        if delay is not None: send(_socket, delay)
         t = threading.Thread(target=retrive_confirmation, args=[_socket,globals()['pcs'][phone]['name'],])
         t.name = f"Confirmation {globals()['pcs'][phone]['name']}"
         t.start()
@@ -513,7 +522,10 @@ def _console(inp):
         shutdown_pc(pcs.get_by_name(name))
     elif "sleep" in inp:
         name = inp.split(" ")[-1]
-        shutdown_pc(pcs.get_by_name(name), True)
+        shutdown_pc(pcs.get_by_name(name), _command=SLEEP)
+    elif "restart" in inp:
+        name = inp.split(" ")[-1]
+        shutdown_pc(pcs.get_by_name(name), _command=RESTART)
     elif "list" in inp:
         for values in pcs:
             print(values.split(" - ")[0])
@@ -564,5 +576,5 @@ check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate()
 _api.create_function("wake", "Wakes up the user's connected PC's\nCategory: NETWORK", UI_wake, API.SENDER)
-_api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", shutdown_pc, API.SENDER)
+_api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", shutdown_pc, API.INPUT_AND_SENDER)
 main()
