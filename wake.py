@@ -377,8 +377,8 @@ class console:
         while self.is_running:
             self.work(*self.read())
 
-def retrive_confirmation(socket, name):
-    socket.settimeout(35)
+def retrive_confirmation(socket, name, delay):
+    socket.settimeout(35 if delay is None else int(delay))
     try:
         r = socket.recv(1).decode("utf-8")
         if r:
@@ -404,7 +404,7 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         command="SHUTDOWN" if _command is SHUTDOWN else "SLEEP" if _command is SLEEP else 'RESTART'
         send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc'].lower()}".encode("utf-8")).hexdigest())
         if delay is not None: send(_socket, delay)
-        t = threading.Thread(target=retrive_confirmation, args=[_socket,globals()['pcs'][phone]['name'],])
+        t = threading.Thread(target=retrive_confirmation, args=[_socket,globals()['pcs'][phone]['name'],delay,])
         t.name = f"Confirmation {globals()['pcs'][phone]['name']}"
         t.start()
     except Exception as ex: print(ex)
