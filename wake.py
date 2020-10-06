@@ -460,7 +460,7 @@ def loop():
         if counter == 200:
             get_ip()
             counter = -1
-            print(f'Average scann time: {avg(_avg)}')
+            #print(f'Average scann time: {avg(_avg)}')
             _avg = []
         counter += 1
         time.sleep(0.2)
