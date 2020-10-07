@@ -379,15 +379,19 @@ class console:
 
 def retrive_confirmation(socket, name, delay):
     socket.settimeout(35 if delay is None else int(delay))
+    ansv = ""
     try:
         r = socket.recv(1).decode("utf-8")
         if r:
-            print(f"{name} PC executed the command")
+            ansv = "PC executed the command"
         elif r is None:
-            print(f"{name} socked timed out")
+            ansv = "socked timed out"
         else:
-            print(f"{name} PC interrupted the command")
-    except: print(f"{name} Socket error!")
+            ansv = "PC interrupted the command"
+    except: ansv = "Socket error!"
+    finally:
+        print(f"{name} {ansv}")
+        api_send(ansv, user=pcs.get_by_name(name))
 
 SHUTDOWN=0
 SLEEP=1
@@ -413,8 +417,10 @@ def scann(_ip):
     ip = _ip.split(".")
     ip[-1] = "2-24"
     ip = '.'.join(ip)
+    API.blockPrint()
     start = time.process_time()
     scanner = nmap.PortScanner()
+    API.enablePrint()
     mc = {}
     while True:
         try:
@@ -549,6 +555,9 @@ def api_send(msg, user=None):
         _api.send_message(msg, user)
     except: print("API not avaleable!")
 
+def api_sleep(phone, delay=None):
+    shutdown_pc(phone, delay, _command=SLEEP)
+
 ip = None
 get_ip()
 if path.exists("pcs"):
@@ -574,7 +583,8 @@ check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
-_api.validate()
-_api.create_function("wake", "Wakes up the user's connected PC's\nCategory: NETWORK", UI_wake, API.SENDER)
-_api.create_function("shutdown", "shuts down the user's connected PC's\nCategory: NETWORK", shutdown_pc, API.INPUT_AND_SENDER)
+_api.validate(timeout=3)
+_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", UI_wake, API.SENDER)
+_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in second. default: 30>\nCategory: NETWORK", shutdown_pc, API.INPUT_AND_SENDER)
+_api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in second. default: 30>\nCategory: NETWORK", api_sleep, API.INPUT_AND_SENDER)
 main()
