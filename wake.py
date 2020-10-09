@@ -424,7 +424,7 @@ def scann(_ip):
     mc = {}
     while True:
         try:
-            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 100")
+            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 1000")
             #scann_end = time.process_time()
             for ip in ip_s["scan"].values():
                 if ip["addresses"]["ipv4"] != _ip:
@@ -584,7 +584,7 @@ check_loop.name = "Wake check loop"
 check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate(timeout=3)
-_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", UI_wake, API.SENDER)
-_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in second. default: 30>\nCategory: NETWORK", shutdown_pc, API.INPUT_AND_SENDER)
-_api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in second. default: 30>\nCategory: NETWORK", api_sleep, API.INPUT_AND_SENDER)
+_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", UI_wake, [API.SENDER])
+_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in second. default: 30>\nCategory: NETWORK", shutdown_pc, [API.SENDER, API.USER_INPUT])
+_api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in second. default: 30>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
 main()
