@@ -347,7 +347,7 @@ class console:
         self.window.Close()
 
     def print(self, text):
-        self.shown.append(text)
+        self.shown.append(f"[{datetime.now()}]: {text}")
         self.pointer = len(self.commands)
     
     def move_pointer(self, up=True):
