@@ -350,8 +350,8 @@ class main_window:
 class console:
     def __init__(self, call_back):
         layout = [
-            [sg.Listbox(values=[], key="SCREEN", size=(75,25))],
-            [sg.In(key="INPUT", size=(55, 1)), sg.Button("Send", key="SEND", size=(15,1))]
+            [sg.Listbox(values=[], key="SCREEN", size=(105,25))],
+            [sg.In(key="INPUT", size=(85, 1)), sg.Button("Send", key="SEND", size=(15,1))]
         ]
         self.window = sg.Window("Console", layout, return_keyboard_events=True)
         self.read = self.window.read
