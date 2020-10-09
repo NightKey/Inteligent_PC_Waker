@@ -48,7 +48,8 @@ class computers:
             "save_to_json",
             "import_from_json",
             "is_MAC",
-            "data_keys"]
+            "data_keys",
+            "is_time"]
         self.data_keys = [
             "pc",
             "is online",
@@ -61,7 +62,8 @@ class computers:
             "alert on discord",
             "pc ip",
             "turn off sent",
-            "manually turned off"]
+            "manually turned off",
+            "is time"]
 
     def set_window(self, window):
         self.window = window
@@ -79,17 +81,17 @@ class computers:
             tmp = subprocess.call(command, stdout=dnull) == 0
         return tmp
 
-    def add_new(self, address, phone_address, name, dc=None, id=None):
+    def add_new(self, address, key, name, dc=None, id=None):
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
         if not self.is_MAC(address):
             return "PC" # TypeError("'address' should be a MAC address")
-        if not self.is_MAC(phone_address):
-            return "PHONE" # TypeError("'phone_address' should be a MAC address")
-        if phone_address in self.stored:
-            return "USED" # KeyError("'phone_address' already used for a computer.")
-        self.stored[phone_address] = {"pc":address, 'is online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was online":False, "wake time":None, 'alert on discord':dc, 'pc ip':None, 'turn off sent':None, "manually turned off":False}
+        if not self.is_MAC(key) or self.is_time(key):
+            return "KEY" # TypeError("'KEY' should be a MAC address or time intervall (0:00-12:00)")
+        if key in self.stored:
+            return "USED" # KeyError("'KEY' already used for a computer.")
+        self.stored[key] = {"pc":address, 'is online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was online":False, "wake time":None, 'alert on discord':dc, 'pc ip':None, 'turn off sent':None, "manually turned off":False, "is time":self.is_time(key)}
         if id is None: self.id += 0x1
         return False
 
@@ -124,7 +126,7 @@ class computers:
 
     def changed(self, data):
         del self.stored[self.get_by_id(data[2])]
-        self.add_new(address=data[1], phone_address=data[0], name=data[3], dc=data[4], id=data[2])
+        self.add_new(address=data[1], key=data[0], name=data[3], dc=data[4], id=data[2])
     
     def remove(self, other):
         del self.stored[other]
@@ -152,6 +154,18 @@ class computers:
                 self.stored[phone]["pc ip"] = resoults[self.stored[phone]['pc']]
             elif not PC_Online:
                 self.stored[phone]["pc ip"] = None
+            if data["is time"]:
+                try:
+                    tmp = phone.split("-")
+                except:
+                    tmp = [phone, None]
+                now = datetime.now().strftime("%H:%M")
+                if tmp[0] == now:
+                    self.wake(phone)
+                elif tmp[1] == now:
+                    shutdown_pc(phone)
+                    self.reset_state(phone, FULL)
+                continue
             if phone.upper() in resoults:
                 data["phone last online"] = datetime.now()
                 if not data["was wakened"] and not data['manually turned off']:
@@ -223,7 +237,12 @@ class computers:
 
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
-        if re.match(r"([a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+:[a-fA-F0-9]+)", _input) is None:
+        if re.match(r"([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})", _input) is None:
+            return False
+        return True
+    
+    def is_time(self, _input):
+        if re.match(r"^((([0-1]{0,1}\d)|(2[0-3])):([0-5]\d)-(([0-1]{0,1}\d)|(2[0-3])):([0-5]\d)){1}", _input) is None and re.match(r"^((([0-1]{0,1}\d)|(2[0-3])):([0-5]\d)){1}", _input) is None:
             return False
         return True
 
@@ -232,7 +251,7 @@ class data_edit:
         """For editing the data
         """
         layout = [
-            [sg.Text("Telefon MAC címe"), sg.In(default_text=(sender if sender is not None else ''), key="SENDER")],
+            [sg.Text("Telefon MAC címe vagy időpont/intervallum"), sg.In(default_text=(sender if sender is not None else ''), key="SENDER")],
             [sg.Text("PC MAC címe"), sg.In(default_text=(pc if pc is not None else ''), key="PC")],
             [sg.Text("Megjelenítendő név"), sg.In(default_text=(name if name is not None else ''), key="NAME")],
             [sg.Text("Discord név", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van"), sg.In(default_text=(dc if dc is not None else ''), key="DC", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van")],
@@ -498,7 +517,7 @@ def call_back(_type, data):
     #data = [values["SENDER"], values["PC"], self.id, values["NAME"], values['DC']]
     global pcs
     if _type == "NEW":
-        ret = pcs.add_new(address=data[1], phone_address=data[0], name=data[3], dc=data[4], id=data[2])
+        ret = pcs.add_new(address=data[1], key=data[0], name=data[3], dc=data[4], id=data[2])
     elif _type == "EDIT":
         ret = pcs.changed(data)
     if not ret: window.update_UI(pcs)
