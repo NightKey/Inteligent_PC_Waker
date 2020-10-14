@@ -401,13 +401,16 @@ def retrive_confirmation(socket, name, delay):
     ansv = ""
     try:
         r = socket.recv(1).decode("utf-8")
+        print(f"Message retrived from {name}")
         if r:
             ansv = "PC executed the command"
         elif r is None:
             ansv = "socked timed out"
         else:
             ansv = "PC interrupted the command"
-    except: ansv = "Socket error!"
+    except: 
+        ansv = "Socket error!"
+        print(f"Socket Exception! {name}")
     finally:
         print(f"{name} {ansv}")
         api_send(ansv, user=pcs.get_by_name(name))
