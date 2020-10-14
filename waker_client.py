@@ -24,7 +24,10 @@ class UI:
         self.window = sg.Window("Warning", layout, finalize=True, keep_on_top=True)
         self.read = self.window.read
         self.is_running = True
-        
+    
+    def request_close(self):
+        self.is_running = False
+
     def count_down(self):
         self.counter -= 1
         if self.counter == 0:
@@ -49,6 +52,8 @@ class UI:
             event, _ = self.read(timeout=1)
             if event != "__TIMEOUT__":
                 return self.work(event)
+            if not self.is_running:
+                self.close()
             self.window["COUNTER"].Update(str(self.counter))
             
 
@@ -83,6 +88,7 @@ def retrive(_socket):
 def execute_command(connection):
     if COMMAND is not None:
         globals()["THREAD_RUNNING"] = False
+        globals()["window"].request_close()
         connection.send('1'.encode(encoding='utf-8'))
         run(COMMAND)
 
