@@ -15,7 +15,8 @@ THREAD_RUNNING = False
 
 class UI:
     def __init__(self, text, delay):
-        self.counter = int(delay) if delay != '' else 30
+        try: self.counter = int(delay)
+        except: self.counter = 30
         sg.theme("dark")
         layout = [
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
