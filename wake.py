@@ -397,7 +397,7 @@ class console:
             self.work(*self.read())
 
 def retrive_confirmation(socket, name, delay):
-    socket.settimeout(35 if delay is None else int(delay))
+    socket.settimeout(35 if not isinstance(delay, int) else int(delay)+5)
     ansv = ""
     try:
         r = socket.recv(1).decode("utf-8")
