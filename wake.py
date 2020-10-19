@@ -291,6 +291,7 @@ class main_window:
         self.read = self.window.read
         self.is_running = True
         self.call_back = call_back
+        self.pcs = pcs
         self.delete = delete
         self.get_items = get_items
         self.ui_wake = ui_wake
@@ -331,11 +332,12 @@ class main_window:
                     self.shutdown_pc(self.selected, _command=RESTART)
         elif event == "__TIMEOUT__":
             if self.request_update:
-                self.window["PCS"].Update(pcs)
+                self.window["PCS"].Update(self.pcs)
                 self.request_update = False
 
 
     def update_UI(self, pcs):
+        self.pcs = pcs
         self.request_update = True
 
     def show(self):
@@ -433,7 +435,8 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         t = threading.Thread(target=retrive_confirmation, args=[_socket,globals()['pcs'][phone]['name'],delay,])
         t.name = f"Confirmation {globals()['pcs'][phone]['name']}"
         t.start()
-    except Exception as ex: print(ex)
+    except Exception as ex:
+        print(f"{type(ex)} -> {ex}")
 
 def scann(_ip):
     ip = _ip.split(".")
@@ -578,7 +581,18 @@ def api_send(msg, user=None):
     except: print("API not avaleable!")
 
 def api_sleep(phone, delay=None):
-    shutdown_pc(phone, delay, _command=SLEEP)
+    try:
+        shutdown_pc(phone, delay, _command=SLEEP)
+    except Exception as ex:
+        print(f"{type(ex)} -> {ex}")
+
+def api_wake(name):
+    try:
+        print(f"Wake {name}")
+        pcs.wake(pcs.get_by_name(name))
+        ui_update()
+    except Exception as ex:
+        print(f"{type(ex)} -> {ex}")
 
 ip = None
 get_ip()
@@ -606,7 +620,7 @@ check_loop.name = "Wake check loop"
 check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate(timeout=3)
-_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", UI_wake, [API.SENDER])
+_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
 _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in second. default: 30>\nCategory: NETWORK", shutdown_pc, [API.SENDER, API.USER_INPUT])
 _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in second. default: 30>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
 try:
