@@ -413,7 +413,7 @@ def retrive_confirmation(socket, name, delay):
         print(f"Socket Exception! {name}")
     finally:
         print(f"{name} {ansv}")
-        api_send(ansv, user=pcs.get_by_name(name))
+        api_send(ansv, user=pcs[pcs.get_by_name(name)]["alert on discord"])
 
 SHUTDOWN=0
 SLEEP=1
@@ -609,4 +609,7 @@ _api.validate(timeout=3)
 _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", UI_wake, [API.SENDER])
 _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in second. default: 30>\nCategory: NETWORK", shutdown_pc, [API.SENDER, API.USER_INPUT])
 _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in second. default: 30>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
-main()
+try:
+    main()
+except:
+    _api.close("Fatal exception occured")
