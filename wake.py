@@ -440,10 +440,9 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
                     actual_delay += int(delay.split('m')[0])*60
                     delay = delay.split('m')[1]
                 except: pass
-            if 's' in delay:
+            if 's' in delay or delay != '':
                 try:
                     actual_delay += int(delay.split('s')[0])
-                    delay = delay.split('s')[1]
                 except: pass
             if actual_delay == -1: actual_delay = 30
             else: actual_delay += 1
