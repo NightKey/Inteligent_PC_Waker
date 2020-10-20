@@ -403,7 +403,7 @@ def retrive_confirmation(socket, name, delay):
     try:
         r = socket.recv(1).decode("utf-8")
         print(f"Message retrived from {name}")
-        if r:
+        if r == '1':
             ansv = "PC executed the command"
         elif r is None:
             ansv = "socked timed out"
@@ -426,10 +426,6 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         if phone not in pcs.stored: phone = pcs.get_by_name(phone)
         IP = pcs[phone]['pc ip']
         if IP is None: return
-        _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        _socket.connect((IP, 666))
-        command="SHUTDOWN" if _command is SHUTDOWN else "SLEEP" if _command is SLEEP else 'RESTART'
-        send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc'].lower()}".encode("utf-8")).hexdigest())
         try:
             actual_delay = int(delay)
         except:
@@ -451,10 +447,17 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
                 except: pass
             if actual_delay == -1: actual_delay = 30
             else: actual_delay += 1
-        send(_socket, actual_delay)
-        t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone]['name'], actual_delay,])
-        t.name = f"Confirmation {globals()['pcs'][phone]['name']}"
-        t.start()
+        try:
+            _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            _socket.connect((IP, 666))
+            command="SHUTDOWN" if _command is SHUTDOWN else "SLEEP" if _command is SLEEP else 'RESTART'
+            send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc'].lower()}".encode("utf-8")).hexdigest())
+            send(_socket, actual_delay)
+            t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone]['name'], actual_delay,])
+            t.name = f"Confirmation {globals()['pcs'][phone]['name']}"
+            t.start()
+        except:
+             api_send("Connection refused!", user=globals()['pcs'][phone]["alert on discord"])
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
