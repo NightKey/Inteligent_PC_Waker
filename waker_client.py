@@ -12,6 +12,7 @@ IP = None
 MAC = gma()
 COMMAND = None
 THREAD_RUNNING = False
+window = None
 
 class UI:
     def __init__(self, text, delay):
@@ -131,12 +132,10 @@ if __name__ == "__main__":
         bg.start()
         if window.show():
             window.close()
-            del window
             execute_command(conn)
         else:
             window.close()
             conn.send('0'.encode(encoding='utf-8'))
             globals()["COMMAND"] = None
             globals()["THREAD_RUNNING"] = False
-            del window
             del bg
