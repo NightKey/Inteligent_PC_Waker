@@ -616,8 +616,11 @@ def api_wake(name):
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
-def status(channel):
-    _api.send_message(pcs.get_UI_list(), destination=channel)
+def status(channel, user):
+    try:
+        _api.send_message(pcs.get_UI_list(), destination=channel)
+    except:
+        _api.send_message(pcs.get_UI_list(), destination=user)
 
 ip = None
 get_ip()
@@ -648,7 +651,7 @@ _api.validate(timeout=3)
 _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
 _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", shutdown_pc, [API.SENDER, API.USER_INPUT])
 _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
-_api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status, return_value=[API.CHANNEL])
+_api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status, return_value=[API.SENDER, API.CHANNEL])
 try:
     main()
 except:
