@@ -604,7 +604,25 @@ def api_send(msg, user=None):
 
 def api_sleep(phone, delay=None):
     try:
-        shutdown_pc(phone, delay, _command=SLEEP)
+        if "@" in delay:
+            if _api.is_admin(delay.replace('<@!', '').replace('>', '')):
+                shutdown_pc(delay.replace('<@!', '').replace('>', ''), _command=SLEEP)
+            else:
+                api_send("Only admins allowed to sleep other users!", user=phone)
+        else:
+            shutdown_pc(phone, delay, _command=SLEEP)
+    except Exception as ex:
+        print(f"{type(ex)} -> {ex}")
+
+def api_shutdown(phone, delay=None):
+    try:
+        if "@" in delay:
+            if _api.is_admin(delay.replace('<@!', '').replace('>', '')):
+                shutdown_pc(delay.replace('<@!', '').replace('>', ''))
+            else:
+                api_send("Only admins allowed to sleep other users!", user=phone)
+        else:
+            shutdown_pc(phone, delay)
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
@@ -649,7 +667,7 @@ check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate(timeout=3)
 _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
-_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", shutdown_pc, [API.SENDER, API.USER_INPUT])
+_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown, [API.SENDER, API.USER_INPUT])
 _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
 _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status, return_value=[API.SENDER, API.CHANNEL])
 try:
