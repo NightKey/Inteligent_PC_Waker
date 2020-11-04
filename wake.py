@@ -617,10 +617,10 @@ def api_sleep(phone, delay=None):
 def api_shutdown(phone, delay=None):
     try:
         if "@" in delay:
-            if _api.is_admin(delay.replace('<@!', '').replace('>', '')):
-                shutdown_pc(delay.replace('<@!', '').replace('>', ''))
+            if _api.is_admin(delay.replace('<@', '').replace('>', '')):
+                shutdown_pc(delay.replace('<@', '').replace('>', ''))
             else:
-                api_send("Only admins allowed to sleep other users!", user=phone)
+                api_send("Only admins allowed to shut down other users!", user=phone)
         else:
             shutdown_pc(phone, delay)
     except Exception as ex:
