@@ -10,9 +10,10 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 
 loop_run = True
-SMALL = 0
-PARTIAL = 1
-FULL = 2
+TINY = 0
+SMALL = 1
+PARTIAL = 2
+FULL = 3
 
 class computers:
     """Stores multiple computer-phone address pairs.
@@ -179,7 +180,9 @@ class computers:
             elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
                 self.reset_state(phone, SMALL)
                 if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=7): shutdown_pc(phone)
-            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(hours=2):
+            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(minutes=30):
+                self.reset_state(phone, TINY)
+            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(hours=1):
                 if data['pc ip'] is not None and (data['turn off sent'] is None or datetime.now()-data['turn off sent'] > timedelta(minutes=1)):
                     shutdown_pc(phone)
                     self.stored[phone]['turn off sent'] = datetime.now()
@@ -199,20 +202,16 @@ class computers:
     def wake(self, phone):
         print(f"Waking {self.stored[phone]['name']}")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         self.stored[phone]["was wakened"] = True
         self.stored[phone]["wake time"] = datetime.now()
         if self.send is not None:
             self.send(self.get_random_welcome(), user=self.stored[phone]["alert on discord"])
     
     def reset_state(self, phone, size):
-        if size is SMALL:
+        if size is TINY:
+            self.stored[phone]["manually turned off"] = False
+            print(f"{self.stored[phone]['name']} PC can be wakened")
+        elif size is SMALL:
             self.stored[phone]["was wakened"] = False
             print(f"{self.stored[phone]['name']} Phone offline")
         elif size is PARTIAL:
@@ -221,7 +220,6 @@ class computers:
             print(f"{self.stored[phone]['name']} PC went offline.")
         elif size is FULL:
             self.stored[phone]["phone last online"] = None
-            self.stored[phone]['manually turned off'] = False
             print(f"{self.stored[phone]['name']} state reseted")
     
     def save_to_json(self):
@@ -603,28 +601,26 @@ def api_send(msg, user=None):
     except: print("API not avaleable!")
 
 def api_sleep(phone, delay=None):
+    get_api_shutdown_sleep(phone, delay, SLEEP)
+
+def get_api_shutdown_sleep(phone, delay, command):
     try:
-        if "@" in delay:
-            if _api.is_admin(delay.replace('<@!', '').replace('>', '')):
-                shutdown_pc(delay.replace('<@!', '').replace('>', ''), _command=SLEEP)
+        delay = delay.split(" ")
+        if "@" in delay[0]:
+            if _api.is_admin(delay[0].replace('<@', '').replace('>', '')):
+                if len(delay) > 1:
+                    shutdown_pc(delay[0].replace('<@', '').replace('>', ''), delay[1], _command=command)
+                else:
+                    shutdown_pc(delay[0].replace('<@', '').replace('>', ''), _command=command)
             else:
-                api_send("Only admins allowed to sleep other users!", user=phone)
+                api_send("Only admins allowed to shutdown/sleep other users!", user=phone)
         else:
-            shutdown_pc(phone, delay, _command=SLEEP)
+            shutdown_pc(phone, delay, _command=command)
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
 def api_shutdown(phone, delay=None):
-    try:
-        if "@" in delay:
-            if _api.is_admin(delay.replace('<@', '').replace('>', '')):
-                shutdown_pc(delay.replace('<@', '').replace('>', ''))
-            else:
-                api_send("Only admins allowed to shut down other users!", user=phone)
-        else:
-            shutdown_pc(phone, delay)
-    except Exception as ex:
-        print(f"{type(ex)} -> {ex}")
+    get_api_shutdown_sleep(phone, delay, SHUTDOWN)
 
 def api_wake(name):
     try:
@@ -635,10 +631,11 @@ def api_wake(name):
         print(f"{type(ex)} -> {ex}")
 
 def status(channel, user):
-    try:
-        _api.send_message(pcs.get_UI_list(), destination=channel)
-    except:
-        _api.send_message(pcs.get_UI_list(), destination=user)
+    if _api.valid:
+        try:
+            _api.send_message(pcs.get_UI_list(), destination=channel)
+        except:
+            _api.send_message(pcs.get_UI_list(), destination=user)
 
 ip = None
 get_ip()
@@ -666,11 +663,14 @@ check_loop.name = "Wake check loop"
 check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
 _api.validate(timeout=3)
-_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
-_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown, [API.SENDER, API.USER_INPUT])
-_api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
-_api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status, return_value=[API.SENDER, API.CHANNEL])
+if _api.valid:
+    _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
+    _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown, [API.SENDER, API.USER_INPUT])
+    _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
+    _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status, return_value=[API.SENDER, API.CHANNEL])
 try:
     main()
-except:
-    _api.close("Fatal exception occured")
+except Exception as ex:
+    if _api.valid:
+        _api.close("Fatal exception occured")
+    input(f"Excepton: {ex}\nPress return to exit!")
