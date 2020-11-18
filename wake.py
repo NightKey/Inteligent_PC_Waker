@@ -615,7 +615,7 @@ def get_api_shutdown_sleep(phone, delay, command):
             else:
                 api_send("Only admins allowed to shutdown/sleep other users!", user=phone)
         else:
-            shutdown_pc(phone, delay, _command=command)
+            shutdown_pc(phone, delay[0], _command=command)
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
