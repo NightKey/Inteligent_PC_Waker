@@ -521,8 +521,11 @@ def main():
     global window
     global console_window
     while True:
-        window.work(*window.read(timeout=1))
-        console_window.work(*console_window.read(timeout=1))
+        try:
+            window.work(*window.read(timeout=1))
+            console_window.work(*console_window.read(timeout=1))
+        except:
+            break
     loop_run = False
 
 def save():
