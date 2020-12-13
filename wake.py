@@ -86,6 +86,8 @@ class computers:
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
+        address == address.replace("-", ":")
+        key == key.replace("-", ":")
         if not self.is_MAC(address):
             return "PC" # TypeError("'address' should be a MAC address")
         if not self.is_MAC(key) or self.is_time(key):
@@ -147,7 +149,7 @@ class computers:
     def iterate(self, resoults):
         if resoults == {}: return
         for phone, data in self.stored.items():
-            PC_Online = (data["pc"].upper() in resoults and self.ping(resoults[data["pc"].upper()]))
+            PC_Online = (data["pc"].upper() in resoults)
             self.stored[phone]["is online"] = PC_Online
             if PC_Online and not self.stored[phone]['was online']:
                 self.stored[phone]['was online'] = True
@@ -549,6 +551,7 @@ def call_back(_type, data):
     if not ret: window.update_UI(pcs)
     else:
         sg.popup(ret, "Error")
+    pcs.save_to_json()
     save()
 
 def delete(name):
