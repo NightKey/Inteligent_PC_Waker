@@ -392,7 +392,7 @@ class console:
             self.move_pointer(False)
             self.window["INPUT"].Update(self.commands[self.pointer])
         elif event == "__TIMEOUT__":
-            self.window["SCREEN"].Update(self.shown)
+            self.window["SCREEN"].Update(self.shown[-30:]) #Indexing: [-30:] - last 30| [-60:-30] - previous 30 (step up)| [-45:-15] - 30 item between the two (step down)
     
     def show(self):
         while self.is_running:
@@ -419,6 +419,8 @@ def retrive_confirmation(socket, name, delay):
 SHUTDOWN=0
 SLEEP=1
 RESTART=2
+min_shutdown_dilay = 10
+default_shutdown_delay = 30
 
 def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
     try: 
@@ -444,8 +446,10 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
                 try:
                     actual_delay += int(delay.split('s')[0])
                 except: pass
-            if actual_delay == -1: actual_delay = 30
+            if actual_delay == -1: actual_delay = default_shutdown_delay
             else: actual_delay += 1
+        if actual_delay < min_shutdown_dilay:
+            actual_delay = default_shutdown_delay
         try:
             _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             _socket.connect((IP, 666))
@@ -471,7 +475,7 @@ def scann(_ip):
     mc = {}
     while True:
         try:
-            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 1000")
+            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 500")
             #scann_end = time.process_time()
             for ip in ip_s["scan"].values():
                 if ip["addresses"]["ipv4"] != _ip:
@@ -513,7 +517,6 @@ def loop():
         if counter == 200:
             get_ip()
             counter = -1
-            #print(f'Average scann time: {avg(_avg)}')
             _avg = []
         counter += 1
         time.sleep(0.2)
@@ -610,15 +613,20 @@ def api_sleep(phone, delay=None):
     get_api_shutdown_sleep(phone, delay, SLEEP)
 
 def get_api_shutdown_sleep(phone, delay, command):
+    print(f"Phone: {phone}, delay: {delay}, command: {command}")
     try:
         delay = delay.split(" ")
         if "@" in delay[0]:
-            if _api.is_admin(delay[0].replace('<@', '').replace('>', '')):
+            delay[0] = delay[0].replace('<@', '').replace('>', '')
+            print(f"UserID: {delay[0]}, User Name: {_api.get_username(delay[0])}")
+            if _api.is_admin(delay[0]):
+                print("User is admin!")
                 if len(delay) > 1:
-                    shutdown_pc(delay[0].replace('<@', '').replace('>', ''), delay[1], _command=command)
+                    shutdown_pc(delay[0], delay[1], _command=command)
                 else:
-                    shutdown_pc(delay[0].replace('<@', '').replace('>', ''), _command=command)
+                    shutdown_pc(delay[0], _command=command)
             else:
+                print("User is not admin!")
                 api_send("Only admins allowed to shutdown/sleep other users!", user=phone)
         else:
             shutdown_pc(phone, delay[0], _command=command)
