@@ -140,6 +140,8 @@ class computers:
         for key, values in self.stored.items():
             if values["name"] == name or values["alert on discord"] == name:
                 return key
+        else:
+            return False
     
     def get_by_id(self, id):
         for key, value in self.stored.items():
@@ -613,14 +615,19 @@ def api_sleep(phone, delay=None):
     get_api_shutdown_sleep(phone, delay, SLEEP)
 
 def get_api_shutdown_sleep(phone, delay, command):
-    print(f"Phone: {phone}, delay: {delay}, command: {command}")
     try:
         delay = delay.split(" ")
         if "@" in delay[0]:
             delay[0] = delay[0].replace('<@', '').replace('>', '')
-            print(f"UserID: {delay[0]}, User Name: {_api.get_username(delay[0])}")
-            if _api.is_admin(delay[0]):
-                print("User is admin!")
+            if _api.is_admin(phone):
+                if len(delay) > 1:
+                    shutdown_pc(delay[0], delay[1], _command=command)
+                else:
+                    shutdown_pc(delay[0], _command=command)
+            else:
+                api_send("Only admins allowed to shutdown/sleep other users!", user=phone)
+        elif pcs.get_by_name(delay[0]):
+            if _api.is_admin(phone):
                 if len(delay) > 1:
                     shutdown_pc(delay[0], delay[1], _command=command)
                 else:
