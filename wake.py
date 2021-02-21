@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 
 loop_run = True
-dont_wake_after = time.fromisoformat("22:00")
-dont_wake_before = time.fromisoformat("06:00")
+dont_wake_after = time.strptime("22:00", "%H:%M")
+dont_wake_before = time.strptime("06:00", "%H:%M")
 TINY = 0
 SMALL = 1
 PARTIAL = 2
