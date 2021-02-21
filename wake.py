@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 
 loop_run = True
+dont_wake_after = time.fromisoformat("22:00")
+dont_wake_before = time.fromisoformat("06:00")
 TINY = 0
 SMALL = 1
 PARTIAL = 2
@@ -203,13 +205,17 @@ class computers:
             data = f.read(-1).split('\n')
         return random.choice(data)
 
-    def wake(self, phone):
+    def wake(self, phone, automatic=True):
+        if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
+            return
         print(f"Waking {self.stored[phone]['name']}")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
         self.stored[phone]["was wakened"] = True
         self.stored[phone]["wake time"] = datetime.now()
-        if self.send is not None:
+        if self.send is not None and automatic:
             self.send(self.get_random_welcome(), user=self.stored[phone]["alert on discord"])
+        elif self.send is not None:
+            self.send("Done", user=self.stored[phone]["alert on discord"])
     
     def reset_state(self, phone, size):
         if size is TINY:
@@ -646,7 +652,7 @@ def api_shutdown(phone, delay=None):
 def api_wake(name):
     try:
         print(f"Wake {name}")
-        pcs.wake(pcs.get_by_name(name))
+        pcs.wake(pcs.get_by_name(name), False)
         ui_update()
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
@@ -683,7 +689,7 @@ check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
-_api.validate(timeout=3)
+_api.validate(timeout=10)
 if _api.valid:
     _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
     _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown, [API.SENDER, API.USER_INPUT])
