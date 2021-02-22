@@ -7,11 +7,12 @@ import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 import PySimpleGUI as sg
 from datetime import datetime, timedelta
+from datetime import time as dtime
 from hashlib import sha256
 
 loop_run = True
-dont_wake_after = time.strptime("22:00", "%H:%M")
-dont_wake_before = time.strptime("06:00", "%H:%M")
+dont_wake_after = dtime.fromisoformat("22:00")
+dont_wake_before = dtime.fromisoformat("06:00")
 TINY = 0
 SMALL = 1
 PARTIAL = 2
