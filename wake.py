@@ -517,6 +517,7 @@ def avg(inp):
 
 def loop():
     global ip
+    global was_running
     counter = 0
     _avg = []
     while loop_run:
