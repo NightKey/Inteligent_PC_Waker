@@ -17,6 +17,7 @@ TINY = 0
 SMALL = 1
 PARTIAL = 2
 FULL = 3
+was_running = False
 
 class computers:
     """Stores multiple computer-phone address pairs.
@@ -207,7 +208,7 @@ class computers:
         return random.choice(data)
 
     def wake(self, phone, automatic=True):
-        if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
+        if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after) and not was_online:
             return
         print(f"Waking {self.stored[phone]['name']}")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
@@ -484,8 +485,7 @@ def scann(_ip):
     mc = {}
     while True:
         try:
-            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 500")
-            #scann_end = time.process_time()
+            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 200")
             for ip in ip_s["scan"].values():
                 if ip["addresses"]["ipv4"] != _ip:
                     mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
@@ -528,6 +528,8 @@ def loop():
             counter = -1
             _avg = []
         counter += 1
+        if not was_running:
+            was_running = True
         time.sleep(0.2)
 
 def main():
