@@ -48,7 +48,7 @@ class computers:
             "iterate",
             "wake_everyone",
             "get_random_welcome",
-            "wake ",
+            "wake",
             "reset_state",
             "save_to_json",
             "import_from_json",
