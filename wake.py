@@ -48,7 +48,7 @@ class computers:
             "iterate",
             "wake_everyone",
             "get_random_welcome",
-            "wake",
+            "wake ",
             "reset_state",
             "save_to_json",
             "import_from_json",
@@ -522,16 +522,14 @@ def loop():
     counter = 0
     _avg = []
     while loop_run:
-        print("Scanning...")
         ret = scann(ip)
-        print("Iterating...")
         pcs.iterate(ret[0])
         _avg.append(ret[2]-ret[1])
         if counter == 200:
             get_ip()
             counter = -1
             _avg = []
-            print(avg)
+            print(f"Average time: {sum(avg)/200}")
         counter += 1
         if not was_running:
             was_running = True
