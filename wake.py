@@ -541,6 +541,8 @@ def _console(inp):
         window.update_UI(pcs)
     elif "morning" in inp:
         pcs.wake_everyone()
+    elif "help" in inp:
+        print("Commands avaleable: wake, morning, stop, shtdown, sleep, restart, list, update, help")
     elif "stop" in inp:
         pcs.save_to_json()
         save()
