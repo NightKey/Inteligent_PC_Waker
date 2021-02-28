@@ -3,3 +3,4 @@ pcs
 *build*
 *.spec
 *__py*
+*.lnk
