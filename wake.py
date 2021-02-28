@@ -17,7 +17,6 @@ TINY = 0
 SMALL = 1
 PARTIAL = 2
 FULL = 3
-was_running = False
 
 class computers:
     """Stores multiple computer-phone address pairs.
@@ -28,7 +27,6 @@ class computers:
         self.id = 0x0
         self.window = None
         self.send = send
-        self.print_import_message()
 
     def set_window(self, window):
         self.window = window
@@ -46,9 +44,6 @@ class computers:
             tmp = subprocess.call(command, stdout=dnull) == 0
         return tmp
 
-    def print_import_message(self):
-        print("Initialising Computers...")
-
     def add_new(self, address, key, name, dc=None, id=None):
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
@@ -61,7 +56,7 @@ class computers:
             return "KEY" # TypeError("'KEY' should be a MAC address or time intervall (0:00-12:00)")
         if key in self.stored:
             return "USED" # KeyError("'KEY' already used for a computer.")
-        self.stored[key] = {"pc":address, 'is online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was online":False, "wake time":None, 'alert on discord':dc, 'pc ip':None, 'turn off sent':None, "manually turned off":False, "is time":self.is_time(key)}
+        self.stored[key] = {"pc":address, 'is online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was online":False, "wake time":None, 'alert on discord':dc, 'pc ip':None, 'turn off sent':None, "manually turned off":True, "is time":self.is_time(key)}
         if id is None: self.id += 0x1
         return False
 
@@ -164,7 +159,7 @@ class computers:
         return random.choice(data)
 
     def wake(self, phone, automatic=True):
-        if (automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after)) or not was_running:
+        if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
             self.reset_state(phone, PARTIAL)
             return
         print(f"Waking {self.stored[phone]['name']}")
@@ -474,7 +469,6 @@ def avg(inp):
 
 def loop():
     global ip
-    global was_running
     counter = 0
     _avg = []
     while loop_run:
@@ -487,8 +481,6 @@ def loop():
             _avg = []
             print(f"Average time: {sum(avg)/200}")
         counter += 1
-        if not was_running:
-            was_running = True
         time.sleep(0.2)
 
 def main():
@@ -631,6 +623,9 @@ def status(channel, user):
 def Computers_test(computers):
         for line in Computers_functions:
             _ = getattr(computers, line)
+        for line in Computers_should_not_contain:
+            if line in computers.__dict__.items():
+                raise Exception("Unused function!")
         for _, data in computers.stored.items():
             for line in Computers_data_keys:
                 _ = data[line]
@@ -638,7 +633,6 @@ def Computers_test(computers):
 ip = None
 get_ip()
 Computers_functions = [
-    "print_import_message",
     "stored",
     "id",
     "window",
@@ -662,6 +656,9 @@ Computers_functions = [
     "import_from_json",
     "is_MAC",
     "is_time"]
+Computers_should_not_contain = [
+    "print_import_message"
+]
 Computers_data_keys = [
     "pc",
     "is online",
