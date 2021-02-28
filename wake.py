@@ -28,48 +28,6 @@ class computers:
         self.id = 0x0
         self.window = None
         self.send = send
-        self.functions = [
-            "print_import_message",
-            "stored",
-            "id",
-            "window",
-            "send",
-            "functions",
-            "set_window",
-            "ping",
-            "add_new",
-            "self_test",
-            "get_UI_list",
-            "__len__",
-            "__getitem__",
-            "changed",
-            "remove",
-            "get_by_name",
-            "get_by_id",
-            "iterate",
-            "wake_everyone",
-            "get_random_welcome",
-            "wake",
-            "reset_state",
-            "save_to_json",
-            "import_from_json",
-            "is_MAC",
-            "data_keys",
-            "is_time"]
-        self.data_keys = [
-            "pc",
-            "is online",
-            "was wakened",
-            "id",
-            "name",
-            "phone last online",
-            "was online",
-            "wake time",
-            "alert on discord",
-            "pc ip",
-            "turn off sent",
-            "manually turned off",
-            "is time"]
         self.print_import_message()
 
     def set_window(self, window):
@@ -106,13 +64,6 @@ class computers:
         self.stored[key] = {"pc":address, 'is online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was online":False, "wake time":None, 'alert on discord':dc, 'pc ip':None, 'turn off sent':None, "manually turned off":False, "is time":self.is_time(key)}
         if id is None: self.id += 0x1
         return False
-
-    def self_test(self):
-        for line in self.functions:
-            _ = getattr(self, line)
-        for _, data in self.stored:
-            for line in self.data_keys:
-                _ = data[line]
 
     def get_UI_list(self):
         """Returns a list for the UI containing the following format:
@@ -675,8 +626,58 @@ def status(channel, user):
         except:
             _api.send_message(pcs.get_UI_list(), destination=user)
 
+def Computers_test(computers):
+        for line in Computers_functions:
+            _ = getattr(computers, line)
+        for _, data in Computers_stored:
+            for line in computers.data_keys:
+                _ = data[line]
+
 ip = None
 get_ip()
+Computers_functions = [
+    "print_import_message",
+    "stored",
+    "id",
+    "window",
+    "send",
+    "functions",
+    "set_window",
+    "ping",
+    "add_new",
+    "get_UI_list",
+    "__len__",
+    "__getitem__",
+    "changed",
+    "remove",
+    "get_by_name",
+    "get_by_id",
+    "iterate",
+    "wake_everyone",
+    "get_random_welcome",
+    "wake",
+    "reset_state",
+    "save_to_json",
+    "import_from_json",
+    "is_MAC",
+    "data_keys",
+    "is_time"]
+Computers_data_keys = [
+    "pc",
+    "is online",
+    "was wakened",
+    "id",
+    "name",
+    "phone last online",
+    "was online",
+    "wake time",
+    "alert on discord",
+    "pc ip",
+    "turn off sent",
+    "manually turned off",
+    "is time"]
+
+
 if path.exists("pcs"):
     with open("pcs", 'br') as f:
         pcs = pickle.load(f)
@@ -686,12 +687,16 @@ else:
         pcs.import_from_json()
         save()
 try:
-    pcs.self_test()
+    print("Testing the integrity...")
+    Computers_test(pcs)
+    print("Test succeeded")
 except:
+    print("Test failed, reimporting...")
     pcs = computers(api_send)
     if path.exists('export.json'):
         pcs.import_from_json()
         save()
+    print("Reimport finished")
 window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
 console_window = console(_console)
 print = console_window.print
