@@ -29,6 +29,7 @@ class computers:
         self.window = None
         self.send = send
         self.functions = [
+            "print_import_message",
             "stored",
             "id",
             "window",
@@ -69,6 +70,7 @@ class computers:
             "turn off sent",
             "manually turned off",
             "is time"]
+        self.print_import_message()
 
     def set_window(self, window):
         self.window = window
@@ -85,6 +87,9 @@ class computers:
         with open(devnull, 'a') as dnull:
             tmp = subprocess.call(command, stdout=dnull) == 0
         return tmp
+
+    def print_import_message(self):
+        print("Initialising Computers...")
 
     def add_new(self, address, key, name, dc=None, id=None):
         """
