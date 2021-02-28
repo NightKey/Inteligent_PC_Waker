@@ -164,7 +164,7 @@ class computers:
         return random.choice(data)
 
     def wake(self, phone, automatic=True):
-        if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after) and not was_running:
+        if (automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after)) or not was_running:
             self.reset_state(phone, PARTIAL)
             return
         print(f"Waking {self.stored[phone]['name']}")
@@ -631,8 +631,8 @@ def status(channel, user):
 def Computers_test(computers):
         for line in Computers_functions:
             _ = getattr(computers, line)
-        for _, data in Computers_stored:
-            for line in computers.data_keys:
+        for _, data in computers.stored.items():
+            for line in Computers_data_keys:
                 _ = data[line]
 
 ip = None
@@ -643,7 +643,6 @@ Computers_functions = [
     "id",
     "window",
     "send",
-    "functions",
     "set_window",
     "ping",
     "add_new",
@@ -662,7 +661,6 @@ Computers_functions = [
     "save_to_json",
     "import_from_json",
     "is_MAC",
-    "data_keys",
     "is_time"]
 Computers_data_keys = [
     "pc",
@@ -692,7 +690,7 @@ try:
     print("Testing the integrity...")
     Computers_test(pcs)
     print("Test succeeded")
-except:
+except Exception as ex:
     print("Test failed, reimporting...")
     pcs = computers(api_send)
     if path.exists('export.json'):
