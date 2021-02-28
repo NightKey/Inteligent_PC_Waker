@@ -209,6 +209,7 @@ class computers:
 
     def wake(self, phone, automatic=True):
         if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after) and not was_running:
+            self.reset_state(phone, PARTIAL)
             return
         print(f"Waking {self.stored[phone]['name']}")
         send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
