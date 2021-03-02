@@ -479,7 +479,7 @@ def loop():
             get_ip()
             counter = -1
             _avg = []
-            print(f"Average time: {sum(avg)/200}")
+            print(f"Average time: {sum(_avg)/200}")
         counter += 1
         time.sleep(0.2)
 
