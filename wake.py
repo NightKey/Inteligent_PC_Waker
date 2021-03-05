@@ -554,11 +554,14 @@ def _console(inp):
         for values in pcs:
             print(values.split(" - ")[0])
     elif "update" in inp:
-        import updater
-        if updater.main():
-            _console("stop")
-            from os import system as run
-            run("restarter.bat")
+        update()
+
+def update():
+    import updater
+    if updater.main():
+        _console("stop")
+        from os import system as run
+        run("restarter.bat")
 
 def UI_wake(name):
     print(f"Wake {name}")
@@ -701,8 +704,8 @@ pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
-_api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c")
-_api.validate(timeout=10)
+_api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
+_api.validate(try_in_background=True)
 if _api.valid:
     _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
     _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown, [API.SENDER, API.USER_INPUT])
