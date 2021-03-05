@@ -1,3 +1,3 @@
 @echo off
-SLEEP 5
+timeout /t 15 /nobreak
 python wake.py

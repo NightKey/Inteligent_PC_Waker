@@ -539,8 +539,8 @@ def _console(inp):
         pcs.save_to_json()
         save()
         window.Close()
-        console_window.close()
-        _api.close()
+        console_window.Close()
+        _api.close("Stopped")
     elif "shutdown" in inp:
         name = inp.split(" ")[-1]
         shutdown_pc(pcs.get_by_name(name))
@@ -560,6 +560,7 @@ def update():
     import updater
     if updater.main():
         _console("stop")
+        _api.close("Update")
         from os import system as run
         run("restarter.bat")
 
