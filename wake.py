@@ -361,10 +361,10 @@ class console:
             self.work(*self.read())
 
 def retrive_confirmation(socket, name, delay):
-    socket.settimeout(delay+5)
+    socket.settimeout(delay+15)
     try:
         r = socket.recv(1).decode("utf-8")
-        print(f"Message retrived from {name}")
+        #print(f"Message retrived from {name}")
         if r == '1':
             ansv = "PC executed the command"
         elif r is None:
@@ -373,7 +373,7 @@ def retrive_confirmation(socket, name, delay):
             ansv = "PC interrupted the command"
     except: 
         ansv = "Socket error!"
-        print(f"Socket Exception! {name}")
+        #print(f"Socket Exception! {name}")
     finally:
         print(f"{name} {ansv}")
         api_send(ansv, user=pcs[pcs.get_by_name(name)]["alert on discord"])
@@ -393,24 +393,27 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         try:
             actual_delay = int(delay)
         except:
-            actual_delay = -1
-            if 'h' in delay:
-                try:
-                    actual_delay += int(delay.split('h')[0])*60*60
-                    delay = delay.split('h')[1]
-                except: pass
-            if 'm' in delay:
-                try:
-                    actual_delay += int(delay.split('m')[0])*60
-                    delay = delay.split('m')[1]
-                except: pass
-            if 's' in delay or delay != '':
-                try:
-                    actual_delay += int(delay.split('s')[0])
-                except: pass
-            if actual_delay == -1: actual_delay = default_shutdown_delay
-            else: actual_delay += 1
-        if actual_delay < min_shutdown_dilay:
+            if delay == "now":
+                actual_delay = 0
+            else:
+                actual_delay = -1
+                if 'h' in delay:
+                    try:
+                        actual_delay += int(delay.split('h')[0])*60*60
+                        delay = delay.split('h')[1]
+                    except: pass
+                if 'm' in delay:
+                    try:
+                        actual_delay += int(delay.split('m')[0])*60
+                        delay = delay.split('m')[1]
+                    except: pass
+                if 's' in delay or delay != '':
+                    try:
+                        actual_delay += int(delay.split('s')[0])
+                    except: pass
+                if actual_delay == -1: actual_delay = default_shutdown_delay
+                else: actual_delay += 1
+        if actual_delay < min_shutdown_dilay and delay != "now":
             actual_delay = default_shutdown_delay
         try:
             _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
