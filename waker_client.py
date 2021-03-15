@@ -32,7 +32,7 @@ class UI:
 
     def count_down(self):
         self.counter -= 1
-        if self.counter == 0:
+        if self.counter <= 0:
             return DO
         return DONT
 
@@ -127,6 +127,9 @@ if __name__ == "__main__":
             else: globals()["COMMAND"] = "shutdown -r -t 0"
             globals()["THREAD_RUNNING"] = True
             window = UI("Restart", delay)
+        if delay == 0:
+            window.close()
+            execute_command(conn)
         bg = threading.Thread(target=counter, args=[window,conn,])
         bg.name = "COUNTER"
         bg.start()
