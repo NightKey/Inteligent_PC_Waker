@@ -559,7 +559,7 @@ def _console(inp):
     elif "update" in inp:
         update()
 
-def update():
+def update(*_):
     import updater
     if updater.main():
         _console("stop")
