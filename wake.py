@@ -1,14 +1,26 @@
-from wakeonlan import send_magic_packet
-import re, socket, nmap, threading, time, pickle, json, random
-from getmac import get_mac_address
-import smdb_api as API
-from os import path, devnull
-import platform    # For getting the operating system name
-import subprocess  # For executing a shell command
-import PySimpleGUI as sg
-from datetime import datetime, timedelta
-from datetime import time as dtime
-from hashlib import sha256
+try:
+    from wakeonlan import send_magic_packet
+    import re, socket, threading, time, pickle, json, random
+    import nmap3 as nmap
+    from getmac import get_mac_address
+    import smdb_api as API
+    from os import path, devnull
+    import platform    # For getting the operating system name
+    import subprocess  # For executing a shell command
+    import PySimpleGUI as sg
+    from datetime import datetime, timedelta
+    from datetime import time as dtime
+    from hashlib import sha256
+except:
+    from os import system as run
+    from platform import system
+    pre = "sudo " if system() == 'Linux' else ""
+    post = " --user" if system() == 'Windows' else ""
+    interpreter = 'python' if system() == 'Windows' else 'python3'
+    run(f"{pre}{interpreter} -m pip install{post} -r dependencies.txt")
+    ext = "sh" if system() == 'Linux' else "exe"
+    run(f"restarter.{ext}")
+    exit()
 
 loop_run = True
 dont_wake_after = dtime.fromisoformat("22:00")
@@ -17,6 +29,12 @@ TINY = 0
 SMALL = 1
 PARTIAL = 2
 FULL = 3
+
+def restart():
+    from os import system as run
+    from platform import system
+    ext = "sh" if system() == 'Linux' else "exe"
+    run(f"restarter.{ext}")
 
 class computers:
     """Stores multiple computer-phone address pairs.
@@ -564,8 +582,7 @@ def update(*_):
     if updater.main():
         _console("stop")
         _api.close("Update")
-        from os import system as run
-        run("restarter.bat")
+        restart()
 
 def UI_wake(name):
     print(f"Wake {name}")
