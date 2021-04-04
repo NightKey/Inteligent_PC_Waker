@@ -470,9 +470,14 @@ def scann(_ip):
             break
         except Exception as ex:
             print(f"Error happaned {ex}")
-            print(f'Ip: {ip}')
-            print(f'results: {ip_s["scan"].values()}')
+            dump_to_file({ip, ip_s})
     return [mc, start, finish]
+
+def dump_to_file(arg):
+    """Dumps the arg to a file. arg must be json-like.
+    """
+    with open("DUMP.txt", "w") as f:
+        json.dump(arg, f)
 
 def send(socket, msg):
     msg = json.dumps(msg)
