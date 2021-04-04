@@ -470,7 +470,7 @@ def scann(_ip):
             break
         except Exception as ex:
             print(f"Error happaned {ex}")
-            print(f"Variables: {ip}")
+            print(f'Ip: {ip}\nresults: {ip_s["scan"].values()}')
     return [mc, start, finish]
 
 def send(socket, msg):
