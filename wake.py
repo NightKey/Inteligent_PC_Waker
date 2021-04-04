@@ -1,7 +1,7 @@
 try:
     from wakeonlan import send_magic_packet
     import re, socket, threading, time, pickle, json, random
-    import nmap3 as nmap
+    import nmap
     from getmac import get_mac_address
     import smdb_api as API
     from os import path, devnull
@@ -11,7 +11,7 @@ try:
     from datetime import datetime, timedelta
     from datetime import time as dtime
     from hashlib import sha256
-except:
+except Exception as ex:
     from os import system as run
     from platform import system
     pre = "sudo " if system() == 'Linux' else ""
@@ -19,7 +19,8 @@ except:
     interpreter = 'python' if system() == 'Windows' else 'python3'
     run(f"{pre}{interpreter} -m pip install{post} -r dependencies.txt")
     ext = "sh" if system() == 'Linux' else "exe"
-    run(f"restarter.{ext}")
+    run(f"./restarter.{ext}")
+    print(f"{type(ex)} -> {ex}")
     exit()
 
 loop_run = True
