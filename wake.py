@@ -459,6 +459,7 @@ def scann(_ip):
     start = time.process_time()
     scanner = nmap.PortScanner()
     API.enablePrint()
+    ip_s = {}
     mc = {}
     while True:
         try:
