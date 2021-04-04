@@ -345,6 +345,9 @@ class console:
         self.pointer = 0
     
     def close(self):
+        global print
+        global original_print
+        print = original_print
         self.is_running = False
         self.window.Close()
 
@@ -460,9 +463,9 @@ def scann(_ip):
     while True:
         try:
             ip_s = scanner.scan(hosts=ip, arguments="-sn")
-            for ip in ip_s["scan"].values():
-                if ip["addresses"]["ipv4"] != _ip:
-                    mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
+            for pcip in ip_s["scan"].values():
+                if pcip["addresses"]["ipv4"] != _ip:
+                    mc[pcip["addresses"]["mac"]] = pcip["addresses"]["ipv4"]
             finish = time.process_time()
             break
         except Exception as ex:
@@ -722,6 +725,7 @@ except Exception as ex:
     print("Reimport finished")
 window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
 console_window = console(_console)
+original_print = print
 print = console_window.print
 pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
