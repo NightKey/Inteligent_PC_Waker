@@ -470,7 +470,7 @@ def scann(_ip):
             break
         except Exception as ex:
             print(f"Error happaned {ex}")
-            dump_to_file({ip, ip_s})
+            dump_to_file({"ip":ip, "ip_s":ip_s})
     return [mc, start, finish]
 
 def dump_to_file(arg):
