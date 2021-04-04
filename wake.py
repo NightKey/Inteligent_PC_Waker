@@ -462,7 +462,7 @@ def scann(_ip):
     mc = {}
     while True:
         try:
-            ip_s = scanner.scan(hosts=ip, arguments="-sn")
+            ip_s = scanner.scan(hosts=ip, arguments="-sn", sudo=True)
             for pcip in ip_s["scan"].values():
                 if pcip["addresses"]["ipv4"] != _ip:
                     mc[pcip["addresses"]["mac"]] = pcip["addresses"]["ipv4"]
