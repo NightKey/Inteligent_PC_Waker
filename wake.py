@@ -459,7 +459,7 @@ def scann(_ip):
     mc = {}
     while True:
         try:
-            ip_s = scanner.scan(hosts=ip, arguments="-sn --max-parallelism 200")
+            ip_s = scanner.scan(hosts=ip, arguments="-sn")
             for ip in ip_s["scan"].values():
                 if ip["addresses"]["ipv4"] != _ip:
                     mc[ip["addresses"]["mac"]] = ip["addresses"]["ipv4"]
@@ -467,6 +467,7 @@ def scann(_ip):
             break
         except Exception as ex:
             print(f"Error happaned {ex}")
+            print(f"Variables: {ip}")
     return [mc, start, finish]
 
 def send(socket, msg):
