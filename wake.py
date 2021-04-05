@@ -194,7 +194,7 @@ class computers:
     def reset_state(self, phone, size):
         if size is TINY:
             self.stored[phone]["manually turned off"] = False
-            print(f"{self.stored[phone]['name']} PC can be wakened")
+            #print(f"{self.stored[phone]['name']} PC can be wakened")
         elif size is SMALL:
             self.stored[phone]["was wakened"] = False
             print(f"{self.stored[phone]['name']} Phone offline")
@@ -467,6 +467,8 @@ def scan(_ip, pre_scann=False):
             if pre_scann:
                 arpsim.pre_check(ip)
             ip_s = arpsim.arp_scan()
+            if pre_scann:
+                print(ip_s)
             for pcip in ip_s:
                 if len(pcip) != 2:
                     continue
@@ -529,7 +531,7 @@ def main():
             #console_window.work(*console_window.read(timeout=1))
         except:
             break
-        sleep(0.1)
+        time.sleep(0.1)
     loop_run = False
 
 def save():
