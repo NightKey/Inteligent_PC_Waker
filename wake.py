@@ -468,6 +468,8 @@ def scan(_ip, pre_scann=False):
                 arpsim.pre_check(ip)
             ip_s = arpsim.arp_scan()
             for pcip in ip_s:
+                if len(pcip) != 2:
+                    continue
                 if pcip[0] != _ip:
                     mc[pcip[1]] = pcip[0]
             finish = time.time()
