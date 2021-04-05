@@ -513,7 +513,7 @@ def loop():
     counter = 0
     _avg = []
     while loop_run:
-        ret = scan(ip, counter==100)
+        ret = scan(ip, counter==0)
         pcs.iterate(ret[0])
         if counter == 200:
             get_ip()
