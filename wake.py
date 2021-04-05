@@ -18,7 +18,7 @@ except Exception as ex:
     post = " --user" if system() == 'Windows' else ""
     interpreter = 'python' if system() == 'Windows' else 'python3'
     run(f"{pre}{interpreter} -m pip install{post} -r dependencies.txt")
-    if system() == "Linux" run("sudo apt install net-tools")
+    if system() == "Linux": run("sudo apt install net-tools")
     ext = "sh" if system() == 'Linux' else "exe"
     run(f"./restarter.{ext}")
     print(f"{type(ex)} -> {ex}")
