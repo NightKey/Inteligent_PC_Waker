@@ -1,7 +1,6 @@
 try:
     from wakeonlan import send_magic_packet
     import re, socket, threading, time, pickle, json, random
-    import nmap
     from getmac import get_mac_address
     import smdb_api as API
     from os import path, devnull
@@ -11,6 +10,7 @@ try:
     from datetime import datetime, timedelta
     from datetime import time as dtime
     from hashlib import sha256
+    import arpsim
 except Exception as ex:
     from os import system as run
     from platform import system
@@ -18,6 +18,7 @@ except Exception as ex:
     post = " --user" if system() == 'Windows' else ""
     interpreter = 'python' if system() == 'Windows' else 'python3'
     run(f"{pre}{interpreter} -m pip install{post} -r dependencies.txt")
+    if system() == "Linux" run("sudo apt install net-tools")
     ext = "sh" if system() == 'Linux' else "exe"
     run(f"./restarter.{ext}")
     print(f"{type(ex)} -> {ex}")
@@ -218,7 +219,7 @@ class computers:
 
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
-        if re.match(r"([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})", _input) is None:
+        if re.match(r"([a-fA-F0-9]{2}[:-]){5}([a-fA-F0-9]{2})", _input) is None:
             return False
         return True
     
@@ -451,27 +452,30 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
-def scann(_ip):
+def scan(_ip, pre_scann=False):
     ip = _ip.split(".")
-    ip[-1] = "2-24"
+    del ip[-1]
     ip = '.'.join(ip)
+    ip = [f"{ip}.{i}" for i in range(2,254)]
     API.blockPrint()
-    start = time.process_time()
-    scanner = nmap.PortScanner()
+    start = time.time()
     API.enablePrint()
-    ip_s = {}
+    ip_s = []
     mc = {}
     while True:
         try:
-            ip_s = scanner.scan(hosts=ip, arguments="-sn", sudo=True)
-            for pcip in ip_s["scan"].values():
-                if pcip["addresses"]["ipv4"] != _ip:
-                    mc[pcip["addresses"]["mac"]] = pcip["addresses"]["ipv4"]
-            finish = time.process_time()
+            if pre_scann:
+                arpsim.pre_check(ip)
+            ip_s = arpsim.arp_scan()
+            for pcip in ip_s:
+                if pcip[0] != _ip:
+                    mc[pcip[1]] = pcip[0]
+            finish = time.time()
             break
         except Exception as ex:
             print(f"Error happaned {ex}")
             dump_to_file({"ip":ip, "ip_s":ip_s})
+    #print(f"Finished under {finish-start} s")
     return [mc, start, finish]
 
 def dump_to_file(arg):
@@ -505,27 +509,25 @@ def loop():
     counter = 0
     _avg = []
     while loop_run:
-        ret = scann(ip)
+        ret = scan(ip, counter==100)
         pcs.iterate(ret[0])
-        _avg.append(ret[2]-ret[1])
         if counter == 200:
             get_ip()
             counter = -1
-            _avg = []
-            print(f"Average time: {sum(_avg)/200}")
         counter += 1
         time.sleep(0.2)
 
 def main():
     global loop_run
     global window
-    global console_window
+    #global console_window
     while True:
         try:
             window.work(*window.read(timeout=1))
-            console_window.work(*console_window.read(timeout=1))
+            #console_window.work(*console_window.read(timeout=1))
         except:
             break
+        sleep(0.1)
     loop_run = False
 
 def save():
@@ -572,7 +574,7 @@ def _console(inp):
         pcs.save_to_json()
         save()
         window.Close()
-        console_window.Close()
+        #console_window.Close()
         _api.close("Stopped")
     elif "shutdown" in inp:
         name = inp.split(" ")[-1]
@@ -731,9 +733,9 @@ except Exception as ex:
         save()
     print("Reimport finished")
 window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
-console_window = console(_console)
+#console_window = console(_console)
 original_print = print
-print = console_window.print
+#print = console_window.print
 pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
