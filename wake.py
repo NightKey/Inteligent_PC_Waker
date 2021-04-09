@@ -457,28 +457,20 @@ def scan(_ip, pre_scann=False):
     del ip[-1]
     ip = '.'.join(ip)
     ip = [f"{ip}.{i}" for i in range(2,254)]
-    API.blockPrint()
     start = time.time()
-    API.enablePrint()
     ip_s = []
     mc = {}
-    while True:
-        try:
-            if pre_scann:
-                arpsim.pre_check(ip)
-            ip_s = arpsim.arp_scan()
-            if pre_scann:
-                print(ip_s)
-            for pcip in ip_s:
-                if len(pcip) != 2:
-                    continue
-                if pcip[0] != _ip:
-                    mc[pcip[1]] = pcip[0]
-            finish = time.time()
-            break
-        except Exception as ex:
-            print(f"Error happaned {ex}")
-            dump_to_file({"ip":ip, "ip_s":ip_s})
+    if pre_scann:
+        arpsim.pre_check(ip)
+    ip_s = arpsim.arp_scan()
+    if pre_scann:
+        print(ip_s)
+    for pcip in ip_s:
+        if len(pcip) != 2:
+            continue
+        if pcip[0] != _ip:
+            mc[pcip[1]] = pcip[0]
+    finish = time.time()
     #print(f"Finished under {finish-start} s")
     return [mc, start, finish]
 
