@@ -463,8 +463,6 @@ def scan(_ip, pre_scann=False):
     if pre_scann:
         arpsim.pre_check(ip)
     ip_s = arpsim.arp_scan()
-    if pre_scann:
-        print(ip_s)
     for pcip in ip_s:
         if len(pcip) != 2:
             continue
@@ -505,7 +503,7 @@ def loop():
     counter = 0
     _avg = []
     while loop_run:
-        ret = scan(ip, counter==0)
+        ret = scan(ip, counter%50 == 0)
         pcs.iterate(ret[0])
         if counter == 200:
             get_ip()
@@ -607,8 +605,9 @@ def api_send(msg, user=None):
         _api.send_message(msg, user)
     except: print("API not avaleable!")
 
-def api_sleep(phone, delay=None):
-    get_api_shutdown_sleep(phone, delay, SLEEP)
+def api_sleep(message):
+    delay = message.content if message.content != "" else None
+    get_api_shutdown_sleep(message.sender, delay, SLEEP)
 
 def get_api_shutdown_sleep(phone, delay, command):
     try:
@@ -636,23 +635,22 @@ def get_api_shutdown_sleep(phone, delay, command):
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
-def api_shutdown(phone, delay=None):
-    get_api_shutdown_sleep(phone, delay, SHUTDOWN)
+def api_shutdown(message):
+    delay = message.content if message.content != "" else None
+    get_api_shutdown_sleep(message.sender, delay, SHUTDOWN)
 
-def api_wake(name):
+def api_wake(message):
     try:
-        print(f"Wake {name}")
-        pcs.wake(pcs.get_by_name(name), False)
+        print(f"Wake {message.sender}")
+        pcs.wake(pcs.get_by_name(message.sender), False)
         ui_update()
     except Exception as ex:
         print(f"{type(ex)} -> {ex}")
 
-def status(channel, user):
+def status(message):
     if _api.valid:
-        try:
-            _api.send_message(pcs.get_UI_list(), destination=channel)
-        except:
-            _api.send_message(pcs.get_UI_list(), destination=user)
+        if (not _api.send_message(pcs.get_UI_list(), destination=message.channel)):
+            _api.send_message(pcs.get_UI_list(), destination=message.sender)
 
 def Computers_test(computers):
         for line in Computers_functions:
@@ -739,11 +737,11 @@ check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
 _api.validate(timeout=10)
 if _api.valid:
-    _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake, [API.SENDER])
-    _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown, [API.SENDER, API.USER_INPUT])
-    _api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown, [API.SENDER, API.USER_INPUT])
-    _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep, [API.SENDER, API.USER_INPUT])
-    _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status, return_value=[API.SENDER, API.CHANNEL])
+    _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake)
+    _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+    _api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+    _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
+    _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
 try:
     main()
 except Exception as ex:
