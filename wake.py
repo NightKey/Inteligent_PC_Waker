@@ -735,13 +735,12 @@ check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
 check_loop.start()
 _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
-_api.validate(timeout=10)
-if _api.valid:
-    _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake)
-    _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
-    _api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
-    _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
-    _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
+_api.validate()
+_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake)
+_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+_api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+_api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
+_api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
 try:
     main()
 except Exception as ex:
