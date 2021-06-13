@@ -21,7 +21,8 @@ class UI:
         sg.theme("dark")
         layout = [
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
-            [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")]
+            [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")],
+            [sg.InputCombo(["1","5","10","20","50"], key="AMOUNT"), sg.InputCombo(["s", "m", "h"], key="TYPE"), sg.Button("Increment", key="INC"), sg.Button("Decrement", key="DEC")]
         ]
         self.window = sg.Window("Warning", layout, finalize=True, keep_on_top=True)
         self.read = self.window.read
@@ -29,6 +30,9 @@ class UI:
     
     def request_close(self):
         self.is_running = False
+
+    def request_time_change(self, time):
+        self.counter += time
 
     def count_down(self):
         self.counter -= 1
@@ -41,30 +45,61 @@ class UI:
         self.window.RootNeedsDestroying = True
         self.window.Close()
 
-    def work(self, event):
+    def work(self, event, values):
         if event == sg.WINDOW_CLOSED or event == "CANCLE":
             self.close()
             return DONT
+        elif event == "INC":
+            time = int(values["AMOUNT"])
+            if values["TYPE"] == "m":
+                time *= 60
+            elif values["TYPE"] == "h":
+                time *= 120
+            self.request_time_change(time)
+        elif event == "DEC":
+            time = int(values["AMOUNT"])
+            if values["TYPE"] == "m":
+                time *= 60
+            elif values["TYPE"] == "h":
+                time *= 120
+            self.request_time_change(time*-1)
         elif event == "SKIP":
             self.close()
             return DO
 
     def show(self):
         while True:
-            event, _ = self.read(timeout=1)
-            if event != "__TIMEOUT__":
-                return self.work(event)
+            event, values = self.read(timeout=1)
+            if event == "CANCLE" or event == "SKIP":
+                return self.work(event, values)
+            elif event != "__TIMEOUT__":
+                self.work(event, values)
             if not self.is_running:
                 self.close()
             self.window["COUNTER"].Update(str(self.counter))
             
 
 def counter(window, connection):
+    stop_timer = sha256(f"STOP{MAC}".encode('utf-8')).hexdigest()
+    inc_time = sha256(f"INC{MAC}".encode('utf-8')).hexdigest()
+    dec_time = sha256(f"DEC{MAC}".encode('utf-8')).hexdigest()
     while THREAD_RUNNING:
-        if not window.count_down():
-            sleep(1)
-        else:
+        if window.count_down():
             execute_command(connection)
+        try:
+            command = retrive(connection)
+            if command == inc_time:
+                time = retrive(connection)
+                window.request_time_change(int(time))
+                sleep(0.9)
+            elif command == dec_time:
+                time = retrive(connection)
+                window.request_time_change(int(time)*-1)
+                sleep(0.9)
+            elif command == stop_timer:
+                window.close()
+        except:
+            sleep(1)
 
 def get_ip():
     global IP
@@ -96,7 +131,6 @@ def execute_command(connection):
 
 if __name__ == "__main__":
     shutdown=sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
-    print(f'Shutdown: {shutdown}')
     _sleep=sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
     restart=sha256(f"RESTART{MAC}".encode('utf-8')).hexdigest()
     print(f'Sleep: {_sleep}')
