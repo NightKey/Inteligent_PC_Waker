@@ -54,14 +54,14 @@ class UI:
             if values["TYPE"] == "m":
                 time *= 60
             elif values["TYPE"] == "h":
-                time *= 120
+                time *= 3600
             self.request_time_change(time)
         elif event == "DEC":
             time = int(values["AMOUNT"])
             if values["TYPE"] == "m":
                 time *= 60
             elif values["TYPE"] == "h":
-                time *= 120
+                time *= 3600
             self.request_time_change(time*-1)
         elif event == "SKIP":
             self.close()
