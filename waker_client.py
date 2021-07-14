@@ -22,11 +22,12 @@ class UI:
         layout = [
             [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
             [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")],
-            [sg.InputCombo(["1","5","10","20","50"], key="AMOUNT"), sg.InputCombo(["s", "m", "h"], key="TYPE"), sg.Button("Increment", key="INC"), sg.Button("Decrement", key="DEC")]
+            [sg.InputCombo(["1","5","10","20","50"], key="AMOUNT", default_value="1"), sg.InputCombo(["s", "m", "h"], key="TYPE", default_value="s"), sg.Button("Increment", key="INC"), sg.Button("Decrement", key="DEC")]
         ]
         self.window = sg.Window("Warning", layout, finalize=True, keep_on_top=True)
         self.read = self.window.read
         self.is_running = True
+        self.closed = False
     
     def request_close(self):
         self.is_running = False
@@ -44,6 +45,7 @@ class UI:
         self.is_running = False
         self.window.RootNeedsDestroying = True
         self.window.Close()
+        self.closed = True
 
     def work(self, event, values):
         if event == sg.WINDOW_CLOSED or event == "CANCLE":
@@ -68,15 +70,16 @@ class UI:
             return DO
 
     def show(self):
-        while True:
+        while self.is_running and not self.closed:
             event, values = self.read(timeout=1)
             if event == "CANCLE" or event == "SKIP":
                 return self.work(event, values)
             elif event != "__TIMEOUT__":
                 self.work(event, values)
+            self.window["COUNTER"].Update(str(self.counter))
+        else:
             if not self.is_running:
                 self.close()
-            self.window["COUNTER"].Update(str(self.counter))
             
 
 def counter(window, connection):
@@ -123,10 +126,12 @@ def retrive(_socket):
         return None
 
 def execute_command(connection):
+    global window
     if COMMAND is not None:
         globals()["THREAD_RUNNING"] = False
-        globals()["window"].request_close()
+        window.request_close()
         connection.send('1'.encode(encoding='utf-8'))
+        while not window.closed: sleep(1)
         run(COMMAND)
 
 if __name__ == "__main__":

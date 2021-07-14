@@ -416,7 +416,9 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         try:
             actual_delay = int(delay)
         except:
-            if delay == "now":
+            if delay is None:
+                actual_delay = 30
+            elif delay == "now":
                 actual_delay = 0
             else:
                 actual_delay = -1
