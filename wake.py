@@ -384,22 +384,19 @@ class console:
             self.work(*self.read())
 
 def retrive_confirmation(socket, name, delay):
-    socket.settimeout(delay+15)
-    try:
-        r = socket.recv(1).decode("utf-8")
-        #print(f"Message retrived from {name}")
-        if r == '1':
-            ansv = "PC executed the command"
-        elif r is None:
-            ansv = "socked timed out"
-        else:
-            ansv = "PC interrupted the command"
-    except: 
-        ansv = "Socket error!"
-        #print(f"Socket Exception! {name}")
-    finally:
-        print(f"{name} {ansv}")
-        api_send(ansv, user=pcs[pcs.get_by_name(name)]["alert on discord"])
+    start_time = time.time()
+    while time.time() - start_time < delay:
+        try:
+            r = socket.recv(1).decode("utf-8")
+            if r == '1':
+                ansv = "PC executed the command"
+            else:
+                ansv = "PC interrupted the command"
+        except : time.sleep(0.1)
+    else:
+        ansv = "socked timed out"
+    print(f"{name} {ansv}")
+    api_send(ansv, user=pcs[pcs.get_by_name(name)]["alert on discord"])
 
 SHUTDOWN=0
 SLEEP=1
@@ -417,7 +414,7 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             actual_delay = int(delay)
         except:
             if delay is None:
-                actual_delay = 30
+                actual_delay = default_shutdown_delay
             elif delay == "now":
                 actual_delay = 0
             else:

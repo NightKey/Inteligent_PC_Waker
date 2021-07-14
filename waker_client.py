@@ -94,11 +94,11 @@ def counter(window, connection):
             if command == inc_time:
                 time = retrive(connection)
                 window.request_time_change(int(time))
-                sleep(0.9)
+                sleep(1)
             elif command == dec_time:
                 time = retrive(connection)
                 window.request_time_change(int(time)*-1)
-                sleep(0.9)
+                sleep(1)
             elif command == stop_timer:
                 window.close()
         except:
