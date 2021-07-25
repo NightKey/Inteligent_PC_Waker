@@ -166,6 +166,8 @@ class computers:
                     shutdown_pc(phone)
                     self.stored[phone]['turn off sent'] = datetime.now()
                 self.reset_state(phone, FULL)
+            else:
+                print(f"{self.stored[phone]['name']} phone went offline")
         else:
             self.window()
             
@@ -194,10 +196,10 @@ class computers:
     def reset_state(self, phone, size):
         if size is TINY:
             self.stored[phone]["manually turned off"] = False
-            #print(f"{self.stored[phone]['name']} PC can be wakened")
+            print(f"{self.stored[phone]['name']} PC can be wakened")
         elif size is SMALL:
             self.stored[phone]["was wakened"] = False
-            print(f"{self.stored[phone]['name']} Phone offline")
+            print(f"{self.stored[phone]['name']} offline for 5 minutes.")
         elif size is PARTIAL:
             self.stored[phone]['was online'] = False
             self.stored[phone]['manually turned off'] = True
@@ -345,7 +347,7 @@ class console:
         self.call_back = call_back
         self.pointer = 0
     
-    def close(self):
+    def close(self) -> None:
         global print
         global original_print
         print = original_print
@@ -468,7 +470,7 @@ def scan(_ip, pre_scann=False):
         if pcip[0] != _ip:
             mc[pcip[1]] = pcip[0]
     finish = time.time()
-    #print(f"Finished under {finish-start} s")
+    print(f"Finished under {finish-start} s")
     return [mc, start, finish]
 
 def dump_to_file(arg):
@@ -504,9 +506,12 @@ def loop():
     while loop_run:
         ret = scan(ip, counter%50 == 0)
         pcs.iterate(ret[0])
+        _avg.append(ret[2]-ret[1])
         if counter == 200:
             get_ip()
             counter = -1
+            print(f"Average scan time: {avg(_avg)}s")
+            _avg = []
         counter += 1
         time.sleep(0.2)
 
