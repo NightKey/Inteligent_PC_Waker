@@ -111,7 +111,7 @@ def get_ip():
     IP = s.getsockname()[0]
     s.close()
 
-def retrive(_socket):
+def retrive(_socket: socket):
     ret = ""
     try:
         while True: 
@@ -120,6 +120,7 @@ def retrive(_socket):
             if data == '\n': break
             ret += data
         print(f'Message: {ret}')
+        _socket.send('1'.encode(encoding='utf-8'))
         return json.loads(ret)
     except Exception as ex:
         print(ex)

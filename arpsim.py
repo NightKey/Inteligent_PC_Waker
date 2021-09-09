@@ -1,8 +1,6 @@
 import subprocess
 from platform import system
-import re
-import time
-import os
+import re, os
 
 mac_filter = r"([a-fA-F0-9]{2}[:-]){5}([a-fA-F0-9]{2})"
 ip_filter = r"([0-9]{1,3}[.]){3}([0-9]){1,3}"

@@ -4,3 +4,4 @@ pcs
 *.spec
 *__py*
 *.lnk
+*.bck

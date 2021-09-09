@@ -24,26 +24,38 @@ except Exception as ex:
     print(f"{type(ex)} -> {ex}")
     exit()
 
-loop_run = True
-dont_wake_after = dtime.fromisoformat("22:00")
-dont_wake_before = dtime.fromisoformat("06:00")
-TINY = 0
-SMALL = 1
-PARTIAL = 2
-FULL = 3
+class computer:
+    id: int = None
+    pc: str = None
+    phone: str = None
+    name: str = None
+    discord: str = None
+    last_online: datetime = None
+    was_wakened: bool = False
+    is_online: bool = False
+    is_time: bool = None
+    was_online: bool = False
+    wake_time: datetime = None
+    last_signal: datetime = None
+    manually_turned_off: bool = True
+    pc_ip: str = None
+    phone_last_online: datetime = None
+    def __init__(self, id: str, pc: str, phone: str, name: str, discord_tag: str, is_time: bool) -> None:
+        self.id = id
+        self.pc = pc
+        self.phone = phone
+        self.name = name
+        self.discord = discord_tag
+        self.is_time = is_time
 
-def restart():
-    from os import system as run
-    from platform import system
-    ext = "sh" if system() == 'Linux' else "exe"
-    run(f"restarter.{ext}")
+original_print = print
 
 class computers:
     """Stores multiple computer-phone address pairs.
     Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
     """
     def __init__(self, send = None):
-        self.stored = {}
+        self.stored: dict[str, computer] = {}
         self.id = 0x0
         self.window = None
         self.send = send
@@ -76,7 +88,7 @@ class computers:
             return "KEY" # TypeError("'KEY' should be a MAC address or time intervall (0:00-12:00)")
         if key in self.stored:
             return "USED" # KeyError("'KEY' already used for a computer.")
-        self.stored[key] = {"pc":address, 'is online':False, "was wakened":False, "id":self.id if id is None else id, "name":name, "phone last online":None, "was online":False, "wake time":None, 'alert on discord':dc, 'pc ip':None, 'turn off sent':None, "manually turned off":True, "is time":self.is_time(key)}
+        self.stored[key] = computer(self.id if id is None else id, address, key, name, dc, self.is_time(key))
         if id is None: self.id += 0x1
         return False
 
@@ -86,7 +98,7 @@ class computers:
         """
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item['name']} - {'WOL sent' if item['was wakened'] and (not item['was online'] or (item['wake time'] is not None and datetime.now() - item['wake time'] < timedelta(minutes=2))) else 'Online' if item['is online'] else 'Offline'}")
+            ret.append(f"{item.name} - {'WOL sent' if item.was_wakened and (not item.was_online or (item.wake_time is not None and datetime.now() - item.wake_time < timedelta(minutes=2))) else 'Online' if item.is_online else 'Offline'}")
         return ret
 
     def __len__(self):
@@ -113,28 +125,28 @@ class computers:
         name = name.strip()
         print(f"Searching for {name}")
         for key, values in self.stored.items():
-            if values["name"] == name or values["alert on discord"] == name:
+            if values.name == name or values.discord == name:
                 return key
         else:
             return False
     
     def get_by_id(self, id):
         for key, value in self.stored.items():
-            if value["id"] == id:
+            if value.id == id:
                 return key
 
     def iterate(self, resoults):
         if resoults == {}: return
         for phone, data in self.stored.items():
-            PC_Online = (data["pc"].upper() in resoults)
-            self.stored[phone]["is online"] = PC_Online
-            if PC_Online and not self.stored[phone]['was online']:
-                self.stored[phone]['was online'] = True
-            if PC_Online and self.stored[phone]['pc ip'] is None:
-                self.stored[phone]["pc ip"] = resoults[self.stored[phone]['pc']]
+            PC_Online = (data.pc.upper() in resoults)
+            self.stored[phone].is_online = PC_Online
+            if PC_Online and not self.stored[phone].was_online:
+                self.stored[phone].was_online = True
+            if PC_Online and self.stored[phone].pc_ip is None:
+                self.stored[phone].pc_ip = resoults[self.stored[phone].pc]
             elif not PC_Online:
-                self.stored[phone]["pc ip"] = None
-            if data["is time"]:
+                self.stored[phone].pc_ip = None
+            if data.is_time:
                 try:
                     tmp = phone.split("-")
                 except:
@@ -147,27 +159,27 @@ class computers:
                     self.reset_state(phone, FULL)
                 continue
             if phone.upper() in resoults:
-                data["phone last online"] = datetime.now()
-                if not data["was wakened"] and not data['manually turned off']:
+                data.phone_last_online = datetime.now()
+                if not data.was_wakened and not data.manually_turned_off:
                     if PC_Online:
-                        data["was wakened"] = True
-                        data["wake time"] = datetime.now()
+                        data.was_wakened = True
+                        data.wake_time = datetime.now()
                     else:
                         self.wake(phone)
-                elif data["was wakened"] and not PC_Online and data['was online']:
+                elif data.was_wakened and not PC_Online and data.was_online:
                     self.reset_state(phone, PARTIAL)
-            elif data["was wakened"] and (data["phone last online"] is None or datetime.now()-data["phone last online"] > timedelta(minutes=5)):
+            elif data.was_wakened and (data.phone_last_online is None or datetime.now()-data.phone_last_online > timedelta(minutes=5)):
                 self.reset_state(phone, SMALL)
-                if PC_Online and data["wake time"] is not None and datetime.now()-data["wake time"] <= timedelta(minutes=7): shutdown_pc(phone)
-            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(minutes=30):
+                if PC_Online and data.wake_time is not None and datetime.now()-data.wake_time <= timedelta(minutes=7): shutdown_pc(phone)
+            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=30):
                 self.reset_state(phone, TINY)
-            elif data["phone last online"] is not None and datetime.now()-data["phone last online"] >= timedelta(hours=1):
-                if data['pc ip'] is not None and (data['turn off sent'] is None or datetime.now()-data['turn off sent'] > timedelta(minutes=1)):
+            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(hours=1):
+                if data.pc_ip is not None and (data.last_signal is None or datetime.now()-data.last_signal > timedelta(minutes=1)):
                     shutdown_pc(phone)
-                    self.stored[phone]['turn off sent'] = datetime.now()
+                    self.stored[phone].last_signal = datetime.now()
                 self.reset_state(phone, FULL)
             else:
-                print(f"{self.stored[phone]['name']} phone went offline")
+                print(f"{self.stored[phone].name} phone went offline")
         else:
             self.window()
             
@@ -184,32 +196,38 @@ class computers:
         if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
             self.reset_state(phone, PARTIAL)
             return
-        print(f"Waking {self.stored[phone]['name']}")
-        send_magic_packet(self.stored[phone]["pc"], ip_address="192.168.0.255")
-        self.stored[phone]["was wakened"] = True
-        self.stored[phone]["wake time"] = datetime.now()
+        print(f"Waking {self.stored[phone].name}")
+        send_magic_packet(self.stored[phone].pc, ip_address="192.168.0.255")
+        self.stored[phone].was_wakened = True
+        self.stored[phone].wake_time = datetime.now()
         if self.send is not None and automatic:
-            self.send(self.get_random_welcome(), user=self.stored[phone]["alert on discord"])
+            self.send(self.get_random_welcome(), user=self.stored[phone].discord)
         elif self.send is not None:
-            self.send("Done", user=self.stored[phone]["alert on discord"])
+            self.send("Done", user=self.stored[phone].discord)
     
     def reset_state(self, phone, size):
         if size is TINY:
-            self.stored[phone]["manually turned off"] = False
-            print(f"{self.stored[phone]['name']} PC can be wakened")
+            self.stored[phone].manually_turned_off = False
+            print(f"{self.stored[phone].name} PC can be wakened")
         elif size is SMALL:
-            self.stored[phone]["was wakened"] = False
-            print(f"{self.stored[phone]['name']} offline for 5 minutes.")
+            self.stored[phone].was_wakened = False
+            print(f"{self.stored[phone].name} offline for 5 minutes.")
         elif size is PARTIAL:
-            self.stored[phone]['was online'] = False
-            self.stored[phone]['manually turned off'] = True
-            print(f"{self.stored[phone]['name']} PC went offline.")
+            self.stored[phone].was_online = False
+            self.stored[phone].manually_turned_off = True
+            print(f"{self.stored[phone].name} PC went offline.")
         elif size is FULL:
-            self.stored[phone]["phone last online"] = None
-            print(f"{self.stored[phone]['name']} state reseted")
+            self.stored[phone].phone_last_online = None
+            print(f"{self.stored[phone].name} state reseted")
     
     def save_to_json(self):
-        out = [{'phone':phone, 'pc':values['pc'], 'name':values['name'], "dc":values["alert on discord"]} for phone, values in self.stored.items()]
+        out = [{'phone':phone, 'pc':values.pc, 'name':values.name, "dc":values.discord} for phone, values in self.stored.items()]
+        if path.exists('export.json'):
+            tmp: json
+            with open("export.json", 'r', encoding='utf-8') as f:
+                tmp = json.load(f)
+            with open("export.json.bck", 'w', encoding='utf-8') as f:
+                json.dump(tmp, f)
         with open('export.json', 'w', encoding='utf-8') as f:
             json.dump(out, f)
 
@@ -217,7 +235,7 @@ class computers:
         with open("export.json", 'r', encoding='utf-8') as f:
             tmp = json.load(f)
         for item in tmp:
-            self.add_new(item["pc"], item['phone'], item['name'], (item['dc'] if 'dc' in item else None))
+            self.add_new(item["pc"], item['phone'], item["name"], (item['dc'] if 'dc' in item else None))
 
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
@@ -283,27 +301,33 @@ class main_window:
         self.selected = None
         self.request_update = False
 
-    def work(self, event, values):
+    def work(self, event, values) -> bool:
         if event == sg.WINDOW_CLOSED:
             self.Close()
+            return False
         elif event == "PCS":
             self.selected = values["PCS"][0].split('-')[0]
             print(f"Selected: {self.get_items(self.selected)}")
+            return True
         elif event == "DELETE":
             if self.selected is not None:
                 self.delete(self.selected)
                 self.selected = None
+            return True
         elif event == "NEW" or event == "EDIT":
+            tmp: data_edit = None
+            new_data: list = None
             if event == "NEW":
                 tmp = data_edit(title="Új adat felvétele")
             else:
                 if self.selected is not None:
                     data = self.get_items(self.selected)
-                    tmp = data_edit("Szerkesztés", data[0], data[1]["pc"], data[1]["id"], data[1]["name"], data[1]["alert on discord"])
+                    tmp = data_edit("Szerkesztés", data[0], data[1].pc, data[1].id, data[1].name, data[1].discord)
                     self.selected = None
-            new_data = tmp.show()
+            if tmp is not None: new_data = tmp.show()
             if new_data is not None:
                 self.call_back(event, new_data)
+            return True
         elif event == "RUN":
             if self.selected is not None:
                 if values['SELECTION'] == "ÉBRESZTÉS":
@@ -314,10 +338,12 @@ class main_window:
                     self.shutdown_pc(self.selected, _command=SLEEP)
                 elif values['SELECTION'] == "ÚJRAINDÍTÁS":
                     self.shutdown_pc(self.selected, _command=RESTART)
+            return True
         elif event == "__TIMEOUT__":
             if self.request_update:
                 self.window["PCS"].Update(self.pcs)
                 self.request_update = False
+            return True
 
 
     def update_UI(self, pcs):
@@ -332,58 +358,71 @@ class main_window:
     def Close(self):
         self.window.Close()
         self.is_running = False
+        save_data()
+        _api.close("User interrupt")
 
-class console:
-    def __init__(self, call_back):
-        layout = [
-            [sg.Listbox(values=[], key="SCREEN", size=(105,25))],
-            [sg.In(key="INPUT", size=(85, 1)), sg.Button("Send", key="SEND", size=(15,1))]
-        ]
-        self.window = sg.Window("Console", layout, return_keyboard_events=True)
-        self.read = self.window.read
-        self.is_running = True
-        self.shown = []
-        self.commands = []
-        self.call_back = call_back
-        self.pointer = 0
+class NotDelayException(Exception):
+    message: str
     
-    def close(self) -> None:
-        global print
-        global original_print
-        print = original_print
-        self.is_running = False
-        self.window.Close()
+    def __init__(self, message):
+        super(message)
+        self.message = message
 
-    def print(self, text):
-        self.shown.append(f"[{datetime.now()}]: {text}")
-        self.pointer = len(self.commands)
-    
-    def move_pointer(self, up=True):
-        if self.pointer > 0 and up:
-            self.pointer -= 1
-        elif self.pointer < len(self.commands) and not up:
-            self.pointer += 1
-    
-    def work(self, event, values):
-        if event == sg.WINDOW_CLOSED:
-            self.close()
-        elif event == "SEND" or event == r"\r":
-            self.print(values["INPUT"])
-            self.commands.append(values["INPUT"])
-            self.call_back(values["INPUT"])
-            self.window["INPUT"].Update("")
-        elif event == "Up:38":
-            self.move_pointer()
-            self.window["INPUT"].Update(self.commands[self.pointer])
-        elif event == "Down:40":
-            self.move_pointer(False)
-            self.window["INPUT"].Update(self.commands[self.pointer])
-        elif event == "__TIMEOUT__":
-            self.window["SCREEN"].Update(self.shown[-30:]) #Indexing: [-30:] - last 30| [-60:-30] - previous 30 (step up)| [-45:-15] - 30 item between the two (step down)
-    
-    def show(self):
-        while self.is_running:
-            self.work(*self.read())
+class Delay:
+    min_shutdown_dilay = 10
+    default_shutdown_delay = 30
+    secunds: int
+
+    def convertable_to_int(data):
+        try:
+            tmp = int(data)
+            return True
+        except:
+            return False
+
+    def __init__(self, input_string):
+        actual_delay: int = -1
+        if input_string is None:
+            actual_delay = Delay.default_shutdown_delay
+        elif "h" in input_string or "m" in input_string or "s" in input_string:
+            if 'h' in input_string:
+                try:
+                    actual_delay += int(input_string.split('h')[0])*60*60
+                    input_string = input_string.split('h')[1]
+                except: pass
+            if 'm' in input_string:
+                try:
+                    actual_delay += int(input_string.split('m')[0])*60
+                    input_string = input_string.split('m')[1]
+                except: pass
+            if 's' in input_string or input_string != '':
+                try:
+                    actual_delay += int(input_string.split('s')[0])
+                except: pass
+            if actual_delay == -1: actual_delay = Delay.default_shutdown_delay
+            else: actual_delay += 1
+        elif self.convertable_to_int(input_string):
+            actual_delay = int(input_string)
+        else:
+            raise NotDelayException()
+        if actual_delay < Delay.min_shutdown_dilay:
+            actual_delay = Delay.min_shutdown_dilay
+        self.secunds = actual_delay
+
+
+loop_run = True
+dont_wake_after = dtime.fromisoformat("22:00")
+dont_wake_before = dtime.fromisoformat("06:00")
+TINY = 0
+SMALL = 1
+PARTIAL = 2
+FULL = 3
+
+def restart():
+    from os import system as run
+    from platform import system
+    ext = "sh" if system() == 'Linux' else "exe"
+    run(f"restarter.{ext}")
 
 def retrive_confirmation(socket, name, delay):
     start_time = time.time()
@@ -398,60 +437,41 @@ def retrive_confirmation(socket, name, delay):
     else:
         ansv = "socked timed out"
     print(f"{name} {ansv}")
-    api_send(ansv, user=pcs[pcs.get_by_name(name)]["alert on discord"])
+    api_send(ansv, user=pcs[pcs.get_by_name(name)].discord)
 
 SHUTDOWN=0
 SLEEP=1
 RESTART=2
-min_shutdown_dilay = 10
-default_shutdown_delay = 30
 
 def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
     try: 
         print(f'Shutdown {phone}')
         if phone not in pcs.stored: phone = pcs.get_by_name(phone)
-        IP = pcs[phone]['pc ip']
+        IP = pcs[phone].pc_ip
         if IP is None: return
         try:
-            actual_delay = int(delay)
-        except:
-            if delay is None:
-                actual_delay = default_shutdown_delay
-            elif delay == "now":
-                actual_delay = 0
-            else:
-                actual_delay = -1
-                if 'h' in delay:
-                    try:
-                        actual_delay += int(delay.split('h')[0])*60*60
-                        delay = delay.split('h')[1]
-                    except: pass
-                if 'm' in delay:
-                    try:
-                        actual_delay += int(delay.split('m')[0])*60
-                        delay = delay.split('m')[1]
-                    except: pass
-                if 's' in delay or delay != '':
-                    try:
-                        actual_delay += int(delay.split('s')[0])
-                    except: pass
-                if actual_delay == -1: actual_delay = default_shutdown_delay
-                else: actual_delay += 1
-        if actual_delay < min_shutdown_dilay and delay != "now":
-            actual_delay = default_shutdown_delay
+            actual_delay = Delay(delay)
+        except NotDelayException as e:
+            return
         try:
             _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             _socket.connect((IP, 666))
             command="SHUTDOWN" if _command is SHUTDOWN else "SLEEP" if _command is SLEEP else 'RESTART'
-            send(_socket, sha256(f"{command}{globals()['pcs'][phone]['pc'].lower()}".encode("utf-8")).hexdigest())
-            send(_socket, actual_delay)
-            t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone]['name'], actual_delay,])
-            t.name = f"Confirmation {globals()['pcs'][phone]['name']}"
+            send(_socket, sha256(f"{command}{globals()['pcs'][phone].pc.lower()}".encode("utf-8")).hexdigest())
+            send(_socket, actual_delay.secunds)
+            try:
+                socket.recv(1).decode("utf-8")
+                api_send(f"Initiated '{command.lower()}' command!", user=globals()['pcs'][phone].discord)
+            except TimeoutError:
+                print(f"Acknolagement didn't arrive for {globals()['pcs'][phone].name}!")
+                api_send("Pc did not react to the shutdown command!", user=globals()['pcs'][phone].discord)
+            t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone].name, actual_delay.secunds,])
+            t.name = f"Confirmation {globals()['pcs'][phone].name}"
             t.start()
         except:
-             api_send("Connection refused!", user=globals()['pcs'][phone]["alert on discord"])
+            api_send("Connection refused!", user=globals()['pcs'][phone].discord)
     except Exception as ex:
-        print(f"{type(ex)} -> {ex}")
+        print(f"Exception in shutdown_pc: {ex}")
 
 def scan(_ip, pre_scann=False):
     ip = _ip.split(".")
@@ -470,7 +490,7 @@ def scan(_ip, pre_scann=False):
         if pcip[0] != _ip:
             mc[pcip[1]] = pcip[0]
     finish = time.time()
-    print(f"Finished under {finish-start} s")
+    #print(f"Finished under {finish-start} s")
     return [mc, start, finish]
 
 def dump_to_file(arg):
@@ -506,26 +526,22 @@ def loop():
     while loop_run:
         ret = scan(ip, counter%50 == 0)
         pcs.iterate(ret[0])
-        _avg.append(ret[2]-ret[1])
+        #_avg.append(ret[2]-ret[1])
         if counter == 200:
             get_ip()
             counter = -1
-            print(f"Average scan time: {avg(_avg)}s")
-            _avg = []
+            #print(f"Average scan time: {avg(_avg)}s")
+            #_avg = []
         counter += 1
-        time.sleep(0.2)
+        time.sleep(1)
 
 def main():
     global loop_run
     global window
-    #global console_window
     while True:
-        try:
-            window.work(*window.read(timeout=1))
-            #console_window.work(*console_window.read(timeout=1))
-        except:
+        if(not window.work(*window.read(timeout=1))):
             break
-        time.sleep(0.1)
+        time.sleep(0.3)
     loop_run = False
 
 def save():
@@ -543,7 +559,7 @@ def add_new_pc(address, phone):
     pcs.add_new(address, phone)
 
 def call_back(_type, data):
-    #data = [values["SENDER"], values["PC"], self.id, values["NAME"], values['DC']]
+    #data = [values["SENDER"], values.pc, self.id, values.name, values['DC']]
     global pcs
     if _type == "NEW":
         ret = pcs.add_new(address=data[1], key=data[0], name=data[3], dc=data[4], id=data[2])
@@ -559,6 +575,10 @@ def delete(name):
     pcs.remove(pcs.get_by_name(name))
     window.update_UI(pcs)
 
+def save_data():
+    pcs.save_to_json()
+    save()
+
 def _console(inp):
     if "wake" in inp:
         name = inp.split(" ")[-1]
@@ -569,11 +589,9 @@ def _console(inp):
     elif "help" in inp:
         print("Commands avaleable: wake, morning, stop, shtdown, sleep, restart, list, update, help")
     elif "stop" in inp:
-        pcs.save_to_json()
-        save()
+        save_data()
         window.Close()
-        #console_window.Close()
-        _api.close("Stopped")
+        _api.close("Stopped by command")
     elif "shutdown" in inp:
         name = inp.split(" ")[-1]
         shutdown_pc(pcs.get_by_name(name))
@@ -592,7 +610,8 @@ def _console(inp):
 def update(*_):
     import updater
     if updater.main():
-        _console("stop")
+        save_data()
+        window.Close()
         _api.close("Update")
         restart()
 
@@ -637,7 +656,7 @@ def get_api_shutdown_sleep(phone, delay, command):
         else:
             shutdown_pc(phone, delay[0], _command=command)
     except Exception as ex:
-        print(f"{type(ex)} -> {ex}")
+        print(f"Exception in get_api_shutdown_sleep: {ex}")
 
 def api_shutdown(message):
     delay = message.content if message.content != "" else None
@@ -649,14 +668,14 @@ def api_wake(message):
         pcs.wake(pcs.get_by_name(message.sender), False)
         ui_update()
     except Exception as ex:
-        print(f"{type(ex)} -> {ex}")
+        print(f"Exception in api_wake: {ex}")
 
 def status(message):
     if _api.valid:
         if (not _api.send_message(pcs.get_UI_list(), destination=message.channel)):
             _api.send_message(pcs.get_UI_list(), destination=message.sender)
 
-def Computers_test(computers):
+def Computers_test(computers: computers):
         for line in Computers_functions:
             _ = getattr(computers, line)
         for line in Computers_should_not_contain:
@@ -664,7 +683,8 @@ def Computers_test(computers):
                 raise Exception("Unused function!")
         for _, data in computers.stored.items():
             for line in Computers_data_keys:
-                _ = data[line]
+                getattr(data, line)
+            break
 
 ip = None
 get_ip()
@@ -697,18 +717,18 @@ Computers_should_not_contain = [
 ]
 Computers_data_keys = [
     "pc",
-    "is online",
-    "was wakened",
+    "is_online",
+    "was_wakened",
     "id",
     "name",
-    "phone last online",
-    "was online",
-    "wake time",
-    "alert on discord",
-    "pc ip",
-    "turn off sent",
-    "manually turned off",
-    "is time"]
+    "phone_last_online",
+    "was_online",
+    "wake_time",
+    "discord",
+    "pc_ip",
+    "last_signal",
+    "manually_turned_off",
+    "is_time"]
 
 
 if path.exists("pcs"):
@@ -731,9 +751,8 @@ except Exception as ex:
         save()
     print("Reimport finished")
 window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
-#console_window = console(_console)
-original_print = print
-#print = console_window.print
+def print(data):
+    original_print(f"[{datetime.now()}]: {data}")
 pcs.set_window(ui_update)
 check_loop = threading.Thread(target=loop)
 check_loop.name = "Wake check loop"
@@ -745,9 +764,9 @@ _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &sh
 _api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
 _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
 _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
-try:
-    main()
-except Exception as ex:
+#try:
+main()
+"""except Exception as ex:
     if _api.valid:
         _api.close("Fatal exception occured")
-    input(f"Excepton: {ex}\nPress return to exit!")
+    input(f"Excepton: {ex}\nPress return to exit!")"""
