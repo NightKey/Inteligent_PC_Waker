@@ -387,7 +387,7 @@ class Delay:
         actual_delay: int = -1
         if input_string is None:
             actual_delay = Delay.default_shutdown_delay
-        elif input_string.to_lower() == "now":
+        elif input_string.lower() == "now":
             self.secunds = Delay.now
             return
         elif "h" in input_string or "m" in input_string or "s" in input_string:
@@ -619,6 +619,8 @@ def update(*_):
         save_data()
         window.Close()
         _api.close("Update")
+        while not window.window.WasClosed:
+            time.sleep(0.1)
         restart()
 
 def UI_wake(name):
@@ -773,9 +775,9 @@ _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &sh
 _api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
 _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
 _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
-#try:
-main()
-"""except Exception as ex:
+try:
+    main()
+except Exception as ex:
     if _api.valid:
         _api.close("Fatal exception occured")
-    input(f"Excepton: {ex}\nPress return to exit!")"""
+    input(f"Excepton: {ex}\nPress return to exit!")
