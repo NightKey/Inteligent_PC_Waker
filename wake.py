@@ -59,6 +59,7 @@ class computers:
         self.id = 0x0
         self.window = None
         self.send = send
+        self.random_welcome: str = None
 
     def set_window(self, window):
         self.window = window
@@ -188,9 +189,10 @@ class computers:
             self.wake(key)
 
     def get_random_welcome(self):
-        with open("welcomes.txt", 'r', encoding="utf-8") as f:
-            data = f.read(-1).split('\n')
-        return random.choice(data)
+        if self.random_welcome is None:
+            with open("welcomes.txt", 'r', encoding="utf-8") as f:
+                self.random_welcome = f.read(-1).split('\n')
+        return random.choice(self.random_welcome)
 
     def wake(self, phone, automatic=True):
         if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
@@ -371,19 +373,23 @@ class NotDelayException(Exception):
 class Delay:
     min_shutdown_dilay = 10
     default_shutdown_delay = 30
+    now = 0
     secunds: int
 
     def convertable_to_int(data):
         try:
-            tmp = int(data)
+            _ = int(data)
             return True
         except:
             return False
 
-    def __init__(self, input_string):
+    def __init__(self, input_string: str):
         actual_delay: int = -1
         if input_string is None:
             actual_delay = Delay.default_shutdown_delay
+        elif input_string.to_lower() == "now":
+            self.secunds = Delay.now
+            return
         elif "h" in input_string or "m" in input_string or "s" in input_string:
             if 'h' in input_string:
                 try:
@@ -401,7 +407,7 @@ class Delay:
                 except: pass
             if actual_delay == -1: actual_delay = Delay.default_shutdown_delay
             else: actual_delay += 1
-        elif self.convertable_to_int(input_string):
+        elif Delay.convertable_to_int(input_string):
             actual_delay = int(input_string)
         else:
             raise NotDelayException()
@@ -634,6 +640,9 @@ def api_sleep(message):
 
 def get_api_shutdown_sleep(phone, delay, command):
     try:
+        if delay is None:
+            shutdown_pc(phone, _command = command)
+            return
         delay = delay.split(" ")
         if "@" in delay[0]:
             delay[0] = delay[0].replace('<@', '').replace('>', '')
