@@ -466,7 +466,7 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             send(_socket, sha256(f"{command}{globals()['pcs'][phone].pc.lower()}".encode("utf-8")).hexdigest())
             send(_socket, actual_delay.secunds)
             try:
-                socket.recv(1).decode("utf-8")
+                socket.recv(5).decode("utf-8")
                 api_send(f"Initiated '{command.lower()}' command!", user=globals()['pcs'][phone].discord)
             except TimeoutError:
                 print(f"Acknolagement didn't arrive for {globals()['pcs'][phone].name}!")
@@ -474,8 +474,9 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone].name, actual_delay.secunds,])
             t.name = f"Confirmation {globals()['pcs'][phone].name}"
             t.start()
-        except:
-            api_send("Connection refused!", user=globals()['pcs'][phone].discord)
+        except Exception as ex:
+            print(f"Exception in shutdown_pc send: {ex}")
+            api_send(f"Excepption during shutdown sending: {ex}", user=globals()['pcs'][phone].discord)
     except Exception as ex:
         print(f"Exception in shutdown_pc: {ex}")
 
