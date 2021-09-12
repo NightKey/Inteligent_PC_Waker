@@ -466,7 +466,7 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             send(_socket, sha256(f"{command}{globals()['pcs'][phone].pc.lower()}".encode("utf-8")).hexdigest())
             send(_socket, actual_delay.secunds)
             try:
-                socket.recv(5).decode("utf-8")
+                _socket.recv(5).decode("utf-8")
                 api_send(f"Initiated '{command.lower()}' command!", user=globals()['pcs'][phone].discord)
             except TimeoutError:
                 print(f"Acknolagement didn't arrive for {globals()['pcs'][phone].name}!")
