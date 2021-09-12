@@ -120,7 +120,6 @@ def retrive(_socket: socket):
             if data == '\n': break
             ret += data
         print(f'Message: {ret}')
-        _socket.send('1'.encode(encoding='utf-8'))
         return json.loads(ret)
     except Exception as ex:
         print(ex)
@@ -167,6 +166,7 @@ if __name__ == "__main__":
             else: globals()["COMMAND"] = "shutdown -r -t 0"
             globals()["THREAD_RUNNING"] = True
             window = UI("Restart", delay)
+        _socket.send('1'.encode(encoding='utf-8'))
         if delay == 0:
             window.close()
             execute_command(conn)
