@@ -437,9 +437,9 @@ def retrive_confirmation(socket, name, delay):
                 ansv = "PC executed the command"
             else:
                 ansv = "PC interrupted the command"
-        except : time.sleep(0.1)
+        except : time.sleep(0.01)
     else:
-        ansv = "socked timed out"
+        ansv = "socket timed out"
     print(f"{name} {ansv}")
     api_send(ansv, user=pcs[pcs.get_by_name(name)].discord)
 

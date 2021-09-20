@@ -94,14 +94,14 @@ def counter(window, connection):
             if command == inc_time:
                 time = retrive(connection)
                 window.request_time_change(int(time))
-                sleep(1)
             elif command == dec_time:
                 time = retrive(connection)
                 window.request_time_change(int(time)*-1)
-                sleep(1)
             elif command == stop_timer:
                 window.close()
         except:
+            pass
+        finally:
             sleep(1)
 
 def get_ip():
@@ -166,7 +166,7 @@ if __name__ == "__main__":
             else: globals()["COMMAND"] = "shutdown -r -t 0"
             globals()["THREAD_RUNNING"] = True
             window = UI("Restart", delay)
-        _socket.send('1'.encode(encoding='utf-8'))
+        conn.send('1'.encode(encoding='utf-8'))
         if delay == 0:
             window.close()
             execute_command(conn)
