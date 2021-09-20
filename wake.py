@@ -59,7 +59,9 @@ class computers:
         self.id = 0x0
         self.window = None
         self.send = send
-        self.random_welcome: str = None
+        with open("welcomes.txt", 'r', encoding="utf-8") as f:
+                self.random_welcome: str = f.read(-1).split('\n')
+        self.times = [5, 7, 30, 60, 1] #[Pass by time, Pass by shut off time, Manual state reset time, Shutdown time, Shutdown time signal delta]
 
     def set_window(self, window):
         self.window = window
@@ -159,7 +161,7 @@ class computers:
                     shutdown_pc(phone)
                     self.reset_state(phone, FULL)
                 continue
-            if phone.upper() in resoults:
+            if phone.upper() in resoults:   #Wake, if not online
                 data.phone_last_online = datetime.now()
                 if not data.was_wakened and not data.manually_turned_off:
                     if PC_Online:
@@ -169,18 +171,17 @@ class computers:
                         self.wake(phone)
                 elif data.was_wakened and not PC_Online and data.was_online:
                     self.reset_state(phone, PARTIAL)
-            elif data.was_wakened and (data.phone_last_online is None or datetime.now()-data.phone_last_online > timedelta(minutes=5)):
-                self.reset_state(phone, SMALL)
-                if PC_Online and data.wake_time is not None and datetime.now()-data.wake_time <= timedelta(minutes=7): shutdown_pc(phone)
-            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=30):
-                self.reset_state(phone, TINY)
-            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(hours=1):
-                if data.pc_ip is not None and (data.last_signal is None or datetime.now()-data.last_signal > timedelta(minutes=1)):
+            elif data.was_wakened and (data.phone_last_online is None or datetime.now()-data.phone_last_online > timedelta(minutes=self.times[0])):
+                self.reset_state(phone, TINY) #Pass by time
+                if PC_Online and data.wake_time is not None and datetime.now()-data.wake_time <= timedelta(minutes=self.times[1]): 
+                    shutdown_pc(phone)   #Pass by shut off time
+            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=self.times[2]) and data.manually_turned_off:
+                self.reset_state(phone, SMALL)  #Manual state reset time
+            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=self.times[3]):    #Shutdown time
+                if data.pc_ip is not None and (data.last_signal is None or datetime.now()-data.last_signal > timedelta(minutes=self.times[4])): #Shutdown time signal delta
                     shutdown_pc(phone)
                     self.stored[phone].last_signal = datetime.now()
                 self.reset_state(phone, FULL)
-            else:
-                print(f"{self.stored[phone].name} phone went offline")
         else:
             self.window()
             
@@ -189,9 +190,6 @@ class computers:
             self.wake(key)
 
     def get_random_welcome(self):
-        if self.random_welcome is None:
-            with open("welcomes.txt", 'r', encoding="utf-8") as f:
-                self.random_welcome = f.read(-1).split('\n')
         return random.choice(self.random_welcome)
 
     def wake(self, phone, automatic=True):
@@ -209,11 +207,11 @@ class computers:
     
     def reset_state(self, phone, size):
         if size is TINY:
+            self.stored[phone].was_wakened = False
+            print(f"{self.stored[phone].name} offline for 5 minutes.")            
+        elif size is SMALL:
             self.stored[phone].manually_turned_off = False
             print(f"{self.stored[phone].name} PC can be wakened")
-        elif size is SMALL:
-            self.stored[phone].was_wakened = False
-            print(f"{self.stored[phone].name} offline for 5 minutes.")
         elif size is PARTIAL:
             self.stored[phone].was_online = False
             self.stored[phone].manually_turned_off = True
