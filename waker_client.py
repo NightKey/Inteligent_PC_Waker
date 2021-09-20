@@ -130,7 +130,8 @@ def execute_command(connection):
     if COMMAND is not None:
         globals()["THREAD_RUNNING"] = False
         window.request_close()
-        connection.send('1'.encode(encoding='utf-8'))
+        try: connection.send('1'.encode(encoding='utf-8'))
+        except: pass
         while not window.closed: sleep(1)
         run(COMMAND)
 

@@ -428,8 +428,9 @@ def restart():
     ext = "sh" if system() == 'Linux' else "exe"
     run(f"restarter.{ext}")
 
-def retrive_confirmation(socket, name, delay):
+def retrive_confirmation(socket: socket, name, delay):
     start_time = time.time()
+    socket.setdefaulttimeout(delay)
     while time.time() - start_time < delay:
         try:
             r = socket.recv(1).decode("utf-8")
@@ -437,7 +438,7 @@ def retrive_confirmation(socket, name, delay):
                 ansv = "PC executed the command"
             else:
                 ansv = "PC interrupted the command"
-        except : time.sleep(0.01)
+        except : time.sleep(0.5)
     else:
         ansv = "socket timed out"
     print(f"{name} {ansv}")
@@ -466,12 +467,12 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             try:
                 _socket.recv(5).decode("utf-8")
                 api_send(f"Initiated '{command.lower()}' command!", user=globals()['pcs'][phone].discord)
+                t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone].name, actual_delay.secunds,])
+                t.name = f"Confirmation {globals()['pcs'][phone].name}"
+                t.start()
             except TimeoutError:
                 print(f"Acknolagement didn't arrive for {globals()['pcs'][phone].name}!")
-                api_send("Pc did not react to the shutdown command!", user=globals()['pcs'][phone].discord)
-            t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone].name, actual_delay.secunds,])
-            t.name = f"Confirmation {globals()['pcs'][phone].name}"
-            t.start()
+                api_send(f"Pc did not react to the {command.lower()} command!", user=globals()['pcs'][phone].discord)
         except Exception as ex:
             print(f"Exception in shutdown_pc send: {ex}")
             api_send(f"Excepption during shutdown sending: {ex}", user=globals()['pcs'][phone].discord)
