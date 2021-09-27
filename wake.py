@@ -54,14 +54,15 @@ class computers:
     """Stores multiple computer-phone address pairs.
     Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
     """
+    TIMES = {"pbt": 5, "pbst": 7, "msrt": 30, "st": 60, "stsd": 1} #[Pass by time, Pass by shut off time, Manual state reset time, Shutdown time, Shutdown time signal delta]
+
     def __init__(self, send = None):
         self.stored: dict[str, computer] = {}
         self.id = 0x0
         self.window = None
         self.send = send
         with open("welcomes.txt", 'r', encoding="utf-8") as f:
-                self.random_welcome: str = f.read(-1).split('\n')
-        self.times = [5, 7, 30, 60, 1] #[Pass by time, Pass by shut off time, Manual state reset time, Shutdown time, Shutdown time signal delta]
+                self.random_welcome: list = f.read(-1).split('\n')
 
     def set_window(self, window):
         self.window = window
@@ -171,14 +172,14 @@ class computers:
                         self.wake(phone)
                 elif data.was_wakened and not PC_Online and data.was_online:
                     self.reset_state(phone, PARTIAL)
-            elif data.was_wakened and (data.phone_last_online is None or datetime.now()-data.phone_last_online > timedelta(minutes=self.times[0])):
+            elif data.was_wakened and (data.phone_last_online is None or datetime.now()-data.phone_last_online > timedelta(minutes=computers.TIMES["pbt"])):
                 self.reset_state(phone, TINY) #Pass by time
-                if PC_Online and data.wake_time is not None and datetime.now()-data.wake_time <= timedelta(minutes=self.times[1]): 
+                if PC_Online and data.wake_time is not None and datetime.now()-data.wake_time <= timedelta(minutes=computers.TIMES["pbst"]): 
                     shutdown_pc(phone)   #Pass by shut off time
-            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=self.times[2]) and data.manually_turned_off:
+            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=computers.TIMES["msrt"]) and data.manually_turned_off:
                 self.reset_state(phone, SMALL)  #Manual state reset time
-            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=self.times[3]):    #Shutdown time
-                if data.pc_ip is not None and (data.last_signal is None or datetime.now()-data.last_signal > timedelta(minutes=self.times[4])): #Shutdown time signal delta
+            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=computers.TIMES["st"]):    #Shutdown time
+                if data.pc_ip is not None and (data.last_signal is None or datetime.now()-data.last_signal > timedelta(minutes=computers.TIMES["stsd"])): #Shutdown time signal delta
                     shutdown_pc(phone)
                     self.stored[phone].last_signal = datetime.now()
                 self.reset_state(phone, FULL)
@@ -190,7 +191,8 @@ class computers:
             self.wake(key)
 
     def get_random_welcome(self):
-        return random.choice(self.random_welcome)
+        if len(self.random_welcome) > 0:
+            return random.choice(self.random_welcome)
 
     def wake(self, phone, automatic=True):
         if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
