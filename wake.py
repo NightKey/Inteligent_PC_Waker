@@ -430,9 +430,9 @@ def restart():
     ext = "sh" if system() == 'Linux' else "exe"
     run(f"restarter.{ext}")
 
-def retrive_confirmation(socket: socket, name, delay):
+def retrive_confirmation(socket: socket.socket, name, delay: int):
     start_time = time.time()
-    socket.setdefaulttimeout(delay)
+    socket.settimeout(float(delay))
     while time.time() - start_time < delay:
         try:
             r = socket.recv(1).decode("utf-8")
