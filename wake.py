@@ -302,10 +302,11 @@ class main_window:
         self.shutdown_pc = shutdown_pc
         self.selected = None
         self.request_update = False
+        self.request_close = False
 
     def work(self, event, values) -> bool:
-        if event == sg.WINDOW_CLOSED:
-            self.Close()
+        if event == sg.WINDOW_CLOSED or self.request_close:
+            self._Close()
             return False
         elif event == "PCS":
             self.selected = values["PCS"][0].split('-')[0]
@@ -358,10 +359,12 @@ class main_window:
             self.work(event, values)
 
     def Close(self):
+        self.request_close = True
+
+    def _Close(self):
         self.window.Close()
         self.is_running = False
         save_data()
-        _api.close("User interrupt")
 
 class NotDelayException(Exception):
     message: str
@@ -419,6 +422,13 @@ class Delay:
 loop_run = True
 dont_wake_after = dtime.fromisoformat("22:00")
 dont_wake_before = dtime.fromisoformat("06:00")
+
+_api: API = None
+window: main_window = None
+check_loop: threading.Thread = None
+pcs: computers = None
+ip = None
+
 TINY = 0
 SMALL = 1
 PARTIAL = 2
@@ -699,8 +709,50 @@ def Computers_test(computers: computers):
                 getattr(data, line)
             break
 
-ip = None
+def init_api():
+    global _api
+    _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
+    _api.validate()
+    _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake)
+    _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+    _api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+    _api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
+    _api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
+
+def print(data):
+    original_print(f"[{datetime.now()}]: {data}")
+
+def setup():
+    global window
+    global check_loop
+    global pcs
+    if path.exists("pcs"):
+        with open("pcs", 'br') as f:
+            pcs = pickle.load(f)
+    else:
+        pcs = computers(api_send)
+        if path.exists('export.json'):
+            pcs.import_from_json()
+            save()
+    try:
+        print("Testing the integrity...")
+        Computers_test(pcs)
+        print("Test succeeded")
+    except Exception as ex:
+        print("Test failed, reimporting...")
+        pcs = computers(api_send)
+        if path.exists('export.json'):
+            pcs.import_from_json()
+            save()
+        print("Reimport finished")
+    window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
+    pcs.set_window(ui_update)
+    check_loop = threading.Thread(target=loop)
+    check_loop.name = "Wake check loop"
+    check_loop.start()
+
 get_ip()
+
 Computers_functions = [
     "stored",
     "id",
@@ -743,40 +795,9 @@ Computers_data_keys = [
     "manually_turned_off",
     "is_time"]
 
+init_api()
+setup()
 
-if path.exists("pcs"):
-    with open("pcs", 'br') as f:
-        pcs = pickle.load(f)
-else:
-    pcs = computers(api_send)
-    if path.exists('export.json'):
-        pcs.import_from_json()
-        save()
-try:
-    print("Testing the integrity...")
-    Computers_test(pcs)
-    print("Test succeeded")
-except Exception as ex:
-    print("Test failed, reimporting...")
-    pcs = computers(api_send)
-    if path.exists('export.json'):
-        pcs.import_from_json()
-        save()
-    print("Reimport finished")
-window = main_window(pcs, call_back, delete, get_data, UI_wake, shutdown_pc)
-def print(data):
-    original_print(f"[{datetime.now()}]: {data}")
-pcs.set_window(ui_update)
-check_loop = threading.Thread(target=loop)
-check_loop.name = "Wake check loop"
-check_loop.start()
-_api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
-_api.validate()
-_api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake)
-_api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
-_api.create_function("shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
-_api.create_function("sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
-_api.create_function("PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
 try:
     main()
 except Exception as ex:
