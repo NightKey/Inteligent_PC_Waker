@@ -465,10 +465,15 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         print(f'Shutdown {phone}')
         if phone not in pcs.stored: phone = pcs.get_by_name(phone)
         IP = pcs[phone].pc_ip
-        if IP is None: return
+        if IP is None:
+            print(f"IP not found for {phone} PC")
+            api_send(f"IP not found for {phone} PC", user=globals()['pcs'][phone].discord)
+            return 
         try:
             actual_delay = Delay(delay)
         except NotDelayException as e:
+            print(f"{delay} not a correct delay value!")
+            api_send(f"{delay} not a correct delay value!", user=globals()['pcs'][phone].discord)
             return
         try:
             _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
