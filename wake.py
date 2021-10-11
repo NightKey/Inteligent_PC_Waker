@@ -2,7 +2,7 @@ try:
     from wakeonlan import send_magic_packet
     import re, socket, threading, time, pickle, json, random
     from getmac import get_mac_address
-    import smdb_api as API
+    from smdb_api import API, Message
     from os import path, devnull
     import platform    # For getting the operating system name
     import subprocess  # For executing a shell command
@@ -649,41 +649,70 @@ def api_send(msg, user=None):
     except: print("API not avaleable!")
 
 def api_sleep(message):
-    delay = message.content if message.content != "" else None
-    get_api_shutdown_sleep(message.sender, delay, SLEEP)
+    get_api_shutdown_sleep(message, SLEEP)
 
-def get_api_shutdown_sleep(phone, delay, command):
+def get_target_name(data: list):
+    if pcs.get_by_name(data[0]):
+        name = data[0]
+        n = 1
+    else:
+        name = data[1]
+        n = 0
+    return [name, n]
+
+def get_target_name_discord_tag(id: str, data: list):
+    name = _api.get_username(id)
+    if is_int(data[0]):
+        n = 0
+    else:
+        n = 1
+    return [name, n]
+
+def determine_delay_for_api_call(delay: list, has_user: bool, user_id: str):
+    name = None
+    actual_delay = None
+    if has_user:
+        name, n = get_target_name_discord_tag(user_id, delay)
+    else:
+        name, n = get_target_name(delay)
+    if len(delay) > 1:
+        actual_delay = delay[n]
+    return [name, actual_delay]
+
+def is_int(data):
     try:
-        if delay is None:
-            shutdown_pc(phone, _command = command)
-            return
-        delay = delay.split(" ")
-        if "@" in delay[0]:
-            delay[0] = delay[0].replace('<@', '').replace('>', '')
-            if _api.is_admin(phone):
-                if len(delay) > 1:
-                    shutdown_pc(delay[0], delay[1], _command=command)
-                else:
-                    shutdown_pc(delay[0], _command=command)
-            else:
-                api_send("Only admins allowed to shutdown/sleep other users!", user=phone)
-        elif pcs.get_by_name(delay[0]):
-            if _api.is_admin(phone):
-                if len(delay) > 1:
-                    shutdown_pc(delay[0], delay[1], _command=command)
-                else:
-                    shutdown_pc(delay[0], _command=command)
+        _ = int(data)
+        return True
+    except:
+        return False
+
+def is_directed_command(delay):
+    if " " in delay:
+        return True
+    if is_int(delay):
+        return False
+    if delay.lower() == "now":
+        return False
+    return True
+
+def get_api_shutdown_sleep(message: Message, command):
+    try:
+        requester = message.sender
+        delay = message.content if message.content != "" else None
+        has_user = message.contains_user()
+        if delay is not None and (has_user or is_directed_command(delay)):
+            if _api.is_admin(requester):
+                requester, delay = determine_delay_for_api_call(delay.split(" "), has_user, message.get_contained_user_id())
             else:
                 print("User is not admin!")
-                api_send("Only admins allowed to shutdown/sleep other users!", user=phone)
-        else:
-            shutdown_pc(phone, delay[0], _command=command)
+                api_send("Only admins allowed to shutdown/sleep other users!", user=requester)
+                return
+        shutdown_pc(requester, delay, _command=command)
     except Exception as ex:
         print(f"Exception in get_api_shutdown_sleep: {ex}")
 
 def api_shutdown(message):
-    delay = message.content if message.content != "" else None
-    get_api_shutdown_sleep(message.sender, delay, SHUTDOWN)
+    get_api_shutdown_sleep(message, SHUTDOWN)
 
 def api_wake(message):
     try:
@@ -711,7 +740,7 @@ def Computers_test(computers: computers):
 
 def init_api():
     global _api
-    _api = API.API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
+    _api = API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
     _api.validate()
     _api.create_function("wake", "Wakes up the user's connected PC\nCategory: NETWORK", api_wake)
     _api.create_function("shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
