@@ -61,6 +61,7 @@ class computers:
         self.id = 0x0
         self.window = None
         self.send = send
+        self.random_welcome: list = []
         with open("welcomes.txt", 'r', encoding="utf-8") as f:
                 self.random_welcome: list = f.read(-1).split('\n')
 
@@ -191,8 +192,10 @@ class computers:
             self.wake(key)
 
     def get_random_welcome(self):
-        if len(self.random_welcome) > 0:
-            return random.choice(self.random_welcome)
+        if len(self.random_welcome) == 0:
+            with open("welcomes.txt", 'r', encoding="utf-8") as f:
+                self.random_welcome: list = f.read(-1).split('\n')
+        return random.choice(self.random_welcome)
 
     def wake(self, phone, automatic=True):
         if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
