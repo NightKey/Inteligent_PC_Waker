@@ -171,15 +171,16 @@ if __name__ == "__main__":
         if delay == 0:
             window.close()
             execute_command(conn)
-        bg = threading.Thread(target=counter, args=[window,conn,])
-        bg.name = "COUNTER"
-        bg.start()
-        if window.show():
-            window.close()
-            execute_command(conn)
         else:
-            window.close()
-            conn.send('0'.encode(encoding='utf-8'))
-            globals()["COMMAND"] = None
-            globals()["THREAD_RUNNING"] = False
-            del bg
+            bg = threading.Thread(target=counter, args=[window,conn,])
+            bg.name = "COUNTER"
+            bg.start()
+            if window.show():
+                window.close()
+                execute_command(conn)
+            else:
+                window.close()
+                conn.send('0'.encode(encoding='utf-8'))
+                globals()["COMMAND"] = None
+                globals()["THREAD_RUNNING"] = False
+                del bg

@@ -443,7 +443,7 @@ def restart():
     ext = "sh" if system() == 'Linux' else "exe"
     run(f"restarter.{ext}")
 
-def retrive_confirmation(socket: socket.socket, name, delay: int):
+def retrive_confirmation(socket: socket.socket, name: str, delay: int):
     start_time = time.time()
     socket.settimeout(float(delay))
     while time.time() - start_time < delay:
@@ -487,7 +487,7 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             try:
                 _socket.recv(5).decode("utf-8")
                 api_send(f"Initiated '{command.lower()}' command!", user=globals()['pcs'][phone].discord)
-                t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone].name, actual_delay.secunds,])
+                t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()['pcs'][phone].name, actual_delay.secunds + 10,])
                 t.name = f"Confirmation {globals()['pcs'][phone].name}"
                 t.start()
             except TimeoutError:
@@ -636,10 +636,9 @@ def _console(inp):
 def update(*_):
     import updater
     if updater.main():
-        save_data()
         window.Close()
         _api.close("Update")
-        while not window.window.WasClosed:
+        while window.is_running:
             time.sleep(0.1)
         restart()
 
