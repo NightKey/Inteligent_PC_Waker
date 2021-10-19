@@ -130,8 +130,12 @@ def execute_command(connection):
     if COMMAND is not None:
         globals()["THREAD_RUNNING"] = False
         window.request_close()
-        try: connection.send('1'.encode(encoding='utf-8'))
-        except: pass
+        try: 
+            connection.send('1'.encode(encoding='utf-8'))
+            print("Command finish sent")
+        except Exception as ex: 
+            print("Command finish failed")
+            print(ex)
         while not window.closed: sleep(1)
         run(COMMAND)
 
@@ -168,6 +172,7 @@ if __name__ == "__main__":
             globals()["THREAD_RUNNING"] = True
             window = UI("Restart", delay)
         conn.send('1'.encode(encoding='utf-8'))
+        print("ACK sent")
         if delay == 0:
             window.close()
             execute_command(conn)
