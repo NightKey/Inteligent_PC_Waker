@@ -1,3 +1,6 @@
+from shutil import copy
+
+
 try:
     from wakeonlan import send_magic_packet
     import re, socket, threading, time, pickle, json, random
@@ -228,11 +231,7 @@ class computers:
     def save_to_json(self):
         out = [{'phone':phone, 'pc':values.pc, 'name':values.name, "dc":values.discord} for phone, values in self.stored.items()]
         if path.exists('export.json'):
-            tmp: json
-            with open("export.json", 'r', encoding='utf-8') as f:
-                tmp = json.load(f)
-            with open("export.json.bck", 'w', encoding='utf-8') as f:
-                json.dump(tmp, f)
+            copy("export.json", "export.json.bck")
         with open('export.json', 'w', encoding='utf-8') as f:
             json.dump(out, f)
 
@@ -387,6 +386,13 @@ class Delay:
             _ = int(data)
             return True
         except:
+            return False
+
+    def is_delay(data):
+        try:
+            Delay(data)
+            return True
+        except NotDelayException:
             return False
 
     def __init__(self, input_string: str):
@@ -702,6 +708,8 @@ def is_directed_command(delay):
     if is_int(delay):
         return False
     if delay.lower() == "now":
+        return False
+    if Delay.is_delay(delay):
         return False
     return True
 
