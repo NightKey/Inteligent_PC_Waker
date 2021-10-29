@@ -427,7 +427,6 @@ class Delay:
             actual_delay = Delay.min_shutdown_dilay
         self.secunds = actual_delay
 
-
 loop_run = True
 dont_wake_after = dtime.fromisoformat("22:00")
 dont_wake_before = dtime.fromisoformat("06:00")
@@ -475,6 +474,9 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
     try: 
         print(f'Shutdown {phone}')
         if phone not in pcs.stored: phone = pcs.get_by_name(phone)
+        if phone not in pcs.stored:
+            print(f"User  not found {phone}")
+            return
         IP = pcs[phone].pc_ip
         if IP is None:
             print(f"IP not found for {phone} PC")
@@ -614,34 +616,6 @@ def save_data():
     pcs.save_to_json()
     save()
 
-def _console(inp):
-    if "wake" in inp:
-        name = inp.split(" ")[-1]
-        pcs.wake(pcs.get_by_name(name))
-        window.update_UI(pcs)
-    elif "morning" in inp:
-        pcs.wake_everyone()
-    elif "help" in inp:
-        print("Commands avaleable: wake, morning, stop, shtdown, sleep, restart, list, update, help")
-    elif "stop" in inp:
-        save_data()
-        window.Close()
-        _api.close("Stopped by command")
-    elif "shutdown" in inp:
-        name = inp.split(" ")[-1]
-        shutdown_pc(pcs.get_by_name(name))
-    elif "sleep" in inp:
-        name = inp.split(" ")[-1]
-        shutdown_pc(pcs.get_by_name(name), _command=SLEEP)
-    elif "restart" in inp:
-        name = inp.split(" ")[-1]
-        shutdown_pc(pcs.get_by_name(name), _command=RESTART)
-    elif "list" in inp:
-        for values in pcs:
-            print(values.split(" - ")[0])
-    elif "update" in inp:
-        update()
-
 def update(*_):
     import updater
     if updater.main():
@@ -695,20 +669,9 @@ def determine_delay_for_api_call(delay: list, has_user: bool, user_id: str):
         actual_delay = delay[n]
     return [name, actual_delay]
 
-def is_int(data):
-    try:
-        _ = int(data)
-        return True
-    except:
-        return False
-
 def is_directed_command(delay):
     if " " in delay:
         return True
-    if is_int(delay):
-        return False
-    if delay.lower() == "now":
-        return False
     if Delay.is_delay(delay):
         return False
     return True
