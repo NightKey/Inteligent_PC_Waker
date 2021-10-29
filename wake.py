@@ -652,7 +652,7 @@ def get_target_name(data: list):
 
 def get_target_name_discord_tag(id: str, data: list):
     name = _api.get_username(id)
-    if is_int(data[0]):
+    if Delay.convertable_to_int(data[0]):
         n = 0
     else:
         n = 1
