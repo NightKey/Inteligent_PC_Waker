@@ -446,7 +446,7 @@ def restart():
     from os import system as run
     from platform import system
     ext = "sh" if system() == 'Linux' else "exe"
-    run(f"restarter.{ext}")
+    run(f"./restarter.{ext}")
 
 def retrive_confirmation(socket: socket.socket, name: str, delay: int):
     start_time = time.time()
@@ -670,6 +670,8 @@ def determine_delay_for_api_call(delay: list, has_user: bool, user_id: str):
     return [name, actual_delay]
 
 def is_directed_command(delay):
+    if delay is None:
+        return False
     if " " in delay:
         return True
     if Delay.is_delay(delay):
@@ -681,7 +683,7 @@ def get_api_shutdown_sleep(message: Message, command):
         requester = message.sender
         delay = message.content if message.content != "" else None
         has_user = message.contains_user()
-        if delay is not None and (has_user or is_directed_command(delay)):
+        if has_user or is_directed_command(delay):
             if _api.is_admin(requester):
                 requester, delay = determine_delay_for_api_call(delay.split(" "), has_user, message.get_contained_user_id())
             else:
