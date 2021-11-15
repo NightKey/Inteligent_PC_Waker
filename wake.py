@@ -163,7 +163,8 @@ class computers:
                 if tmp[0] == now:
                     self.wake(phone)
                 elif tmp[1] == now:
-                    shutdown_pc(phone)
+                    if not das:
+                        shutdown_pc(phone)
                     self.reset_state(phone, FULL)
                 continue
             if phone.upper() in resoults:   #Wake, if not online
@@ -179,12 +180,14 @@ class computers:
             elif data.was_wakened and (data.phone_last_online is None or datetime.now()-data.phone_last_online > timedelta(minutes=computers.TIMES["pbt"])):
                 self.reset_state(phone, TINY) #Pass by time
                 if PC_Online and data.wake_time is not None and datetime.now()-data.wake_time <= timedelta(minutes=computers.TIMES["pbst"]): 
-                    shutdown_pc(phone)   #Pass by shut off time
+                    if not das:
+                        shutdown_pc(phone)   #Pass by shut off time
             elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=computers.TIMES["msrt"]) and data.manually_turned_off:
                 self.reset_state(phone, SMALL)  #Manual state reset time
             elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=computers.TIMES["st"]):    #Shutdown time
                 if data.pc_ip is not None and (data.last_signal is None or datetime.now()-data.last_signal > timedelta(minutes=computers.TIMES["stsd"])): #Shutdown time signal delta
-                    shutdown_pc(phone)
+                    if not das:
+                        shutdown_pc(phone)
                     self.stored[phone].last_signal = datetime.now()
                 self.reset_state(phone, FULL)
         else:
@@ -291,7 +294,8 @@ class main_window:
         sg.theme("dark")
         layout = [
             [sg.Listbox(values=pcs, key="PCS", size=(75,25), enable_events=True)],
-            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS', "ÚJRAINDÍTÁS"], default_value="ÉBRESZTÉS", key="SELECTION", size=(20,1)), sg.Button("Csináld", key="RUN")]
+            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS', "ÚJRAINDÍTÁS"], default_value="ÉBRESZTÉS", key="SELECTION", size=(20,1)), sg.Button("Csináld", key="RUN")],
+            [sg.Checkbox("Disable auto shutdown", key="DAS", default=das)]
         ]
         self.window = sg.Window("IPW", layout, finalize=True)
         self.read = self.window.read
@@ -344,6 +348,8 @@ class main_window:
                 elif values['SELECTION'] == "ÚJRAINDÍTÁS":
                     self.shutdown_pc(self.selected, _command=RESTART)
             return True
+        elif event == "DAS":
+            das = values['DAS']
         elif event == "__TIMEOUT__":
             if self.request_update:
                 self.window["PCS"].Update(self.pcs)
@@ -436,6 +442,7 @@ window: main_window = None
 check_loop: threading.Thread = None
 pcs: computers = None
 ip = None
+das = True
 
 TINY = 0
 SMALL = 1

@@ -157,18 +157,18 @@ if __name__ == "__main__":
         conn.settimeout(0.5)
         delay = retrive(conn)
         if command == shutdown:
-            if system() == "Windows": globals()["COMMAND"] = "shutdown /s /t 0"
-            else: globals()["COMMAND"] = "shutdown -s -t 0"
+            if system() == "Windows": globals()["COMMAND"] = "shutdown /s /t 10"
+            else: globals()["COMMAND"] = "shutdown -s -t 10"
             globals()["THREAD_RUNNING"] = True
             window = UI("Shutdown", delay)
         elif command == _sleep:
-            if system() == 'Windows': globals()["COMMAND"] = "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
-            else: globals()["COMMAND"] = "systemctl suspend"
+            if system() == 'Windows': globals()["COMMAND"] = "timeout 10 & rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
+            else: globals()["COMMAND"] = "sleep 10; systemctl suspend"
             globals()["THREAD_RUNNING"] = True
             window = UI("Sleep", delay)
         elif command == restart:
-            if system() == "Windows": globals()["COMMAND"] = "shutdown /r /t 0"
-            else: globals()["COMMAND"] = "shutdown -r -t 0"
+            if system() == "Windows": globals()["COMMAND"] = "shutdown /r /t 10"
+            else: globals()["COMMAND"] = "shutdown -r -t 10"
             globals()["THREAD_RUNNING"] = True
             window = UI("Restart", delay)
         conn.send('1'.encode(encoding='utf-8'))

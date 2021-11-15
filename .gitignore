@@ -5,3 +5,10 @@ pcs
 *__py*
 *.lnk
 *.bck
+venv/
+*.pyc
+instance/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
