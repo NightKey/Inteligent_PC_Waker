@@ -1,3 +1,3 @@
 @echo off
 timeout /t 15 /nobreak
-python wake.py
+python3 wake.py
