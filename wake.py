@@ -43,13 +43,14 @@ class computer:
     manually_turned_off: bool = True
     pc_ip: str = None
     phone_last_online: datetime = None
-    def __init__(self, id: str, pc: str, phone: str, name: str, discord_tag: str, is_time: bool) -> None:
+    def __init__(self, id: str, pc: str, phone: str, name: str, discord_tag: str, is_time: bool, fix_ip: str = None) -> None:
         self.id = id
         self.pc = pc
         self.phone = phone
         self.name = name
         self.discord = discord_tag
         self.is_time = is_time
+        self.fix_ip = fix_ip
 
 original_print = print
 
@@ -84,7 +85,7 @@ class computers:
             tmp = subprocess.call(command, stdout=dnull) == 0
         return tmp
 
-    def add_new(self, address, key, name, dc=None, id=None):
+    def add_new(self, address, key, name, dc=None, id=None, ip=None):
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
@@ -96,7 +97,7 @@ class computers:
             return "KEY" # TypeError("'KEY' should be a MAC address or time intervall (0:00-12:00)")
         if key in self.stored:
             return "USED" # KeyError("'KEY' already used for a computer.")
-        self.stored[key] = computer(self.id if id is None else id, address, key, name, dc, self.is_time(key))
+        self.stored[key] = computer(self.id if id is None else id, address, key, name, dc, self.is_time(key), ip)
         if id is None: self.id += 0x1
         return False
 
@@ -232,7 +233,7 @@ class computers:
             print(f"{self.stored[phone].name} state reseted")
     
     def save_to_json(self):
-        out = [{'phone':phone, 'pc':values.pc, 'name':values.name, "dc":values.discord} for phone, values in self.stored.items()]
+        out = [{'phone':phone, 'pc':values.pc, 'name':values.name, "dc":values.discord, "ip": values.fix_ip} for phone, values in self.stored.items()]
         if path.exists('export.json'):
             copy("export.json", "export.json.bck")
         with open('export.json', 'w', encoding='utf-8') as f:
@@ -242,7 +243,7 @@ class computers:
         with open("export.json", 'r', encoding='utf-8') as f:
             tmp = json.load(f)
         for item in tmp:
-            self.add_new(item["pc"], item['phone'], item["name"], (item['dc'] if 'dc' in item else None))
+            self.add_new(item["pc"], item['phone'], item["name"], (item['dc'] if 'dc' in item else None), ip=(item['ip'] if ip in item else None))
 
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
@@ -484,7 +485,7 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         if phone not in pcs.stored:
             print(f"User  not found {phone}")
             return
-        IP = pcs[phone].pc_ip
+        IP = pcs[phone].pc_ip if pcs[phone].fix_ip is None else pcs[phone].fix_ip
         if IP is None:
             print(f"IP not found for {phone} PC")
             api_send(f"IP not found for {phone} PC", user=globals()['pcs'][phone].discord)
