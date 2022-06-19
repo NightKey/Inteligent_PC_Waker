@@ -1,7 +1,9 @@
 from os import system as run
 from time import sleep
 from platform import system
-import socket, json, threading
+import socket
+import json
+import threading
 import PySimpleGUI as sg
 from getmac import get_mac_address as gma
 from hashlib import sha256
@@ -14,21 +16,28 @@ COMMAND = None
 THREAD_RUNNING = False
 window = None
 
+
 class UI:
     def __init__(self, text, delay):
-        try: self.counter = int(delay)
-        except: self.counter = 30
+        try:
+            self.counter = int(delay)
+        except:
+            self.counter = 30
         sg.theme("dark")
         layout = [
-            [sg.Text(f"The pc will {text} after"), sg.Text(str(self.counter), key="COUNTER"), sg.Text("secunds")],
-            [sg.Button(f"{text} now", key="SKIP"), sg.Button("Cancle", key="CANCLE")],
-            [sg.InputCombo(["1","5","10","20","50"], key="AMOUNT", default_value="1"), sg.InputCombo(["s", "m", "h"], key="TYPE", default_value="s"), sg.Button("Increment", key="INC"), sg.Button("Decrement", key="DEC")]
+            [sg.Text(f"The pc will {text} after"), sg.Text(
+                str(self.counter), key="COUNTER"), sg.Text("secunds")],
+            [sg.Button(f"{text} now", key="SKIP"),
+             sg.Button("Cancle", key="CANCLE")],
+            [sg.InputCombo(["1", "5", "10", "20", "50"], key="AMOUNT", default_value="1"), sg.InputCombo(
+                ["s", "m", "h"], key="TYPE", default_value="s"), sg.Button("Increment", key="INC"), sg.Button("Decrement", key="DEC")]
         ]
-        self.window = sg.Window("Warning", layout, finalize=True, keep_on_top=True)
+        self.window = sg.Window(
+            "Warning", layout, finalize=True, keep_on_top=True)
         self.read = self.window.read
         self.is_running = True
         self.closed = False
-    
+
     def request_close(self):
         self.is_running = False
 
@@ -80,7 +89,7 @@ class UI:
         else:
             if not self.is_running:
                 self.close()
-            
+
 
 def counter(window, connection):
     stop_timer = sha256(f"STOP{MAC}".encode('utf-8')).hexdigest()
@@ -104,6 +113,7 @@ def counter(window, connection):
         finally:
             sleep(1)
 
+
 def get_ip():
     global IP
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -111,13 +121,15 @@ def get_ip():
     IP = s.getsockname()[0]
     s.close()
 
+
 def retrive(_socket: socket):
     ret = ""
     try:
-        while True: 
+        while True:
             size = int(_socket.recv(1).decode('utf-8'))
             data = _socket.recv(size).decode('utf-8')
-            if data == '\n': break
+            if data == '\n':
+                break
             ret += data
         print(f'Message: {ret}')
         return json.loads(ret)
@@ -125,24 +137,27 @@ def retrive(_socket: socket):
         print(ex)
         return None
 
+
 def execute_command(connection):
     global window
     if COMMAND is not None:
         globals()["THREAD_RUNNING"] = False
         window.request_close()
-        try: 
+        try:
             connection.send('1'.encode(encoding='utf-8'))
             print("Command finish sent")
-        except Exception as ex: 
+        except Exception as ex:
             print("Command finish failed")
             print(ex)
-        while not window.closed: sleep(1)
+        while not window.closed:
+            sleep(1)
         run(COMMAND)
 
+
 if __name__ == "__main__":
-    shutdown=sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
-    _sleep=sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
-    restart=sha256(f"RESTART{MAC}".encode('utf-8')).hexdigest()
+    shutdown = sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
+    _sleep = sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
+    restart = sha256(f"RESTART{MAC}".encode('utf-8')).hexdigest()
     print(f'Sleep: {_sleep}')
     print(f'Restart: {restart}')
     print(f'MAC: {MAC}')
@@ -157,18 +172,25 @@ if __name__ == "__main__":
         conn.settimeout(0.5)
         delay = retrive(conn)
         if command == shutdown:
-            if system() == "Windows": globals()["COMMAND"] = "shutdown /s /t 10"
-            else: globals()["COMMAND"] = "shutdown -s -t 10"
+            if system() == "Windows":
+                globals()["COMMAND"] = "shutdown /s /t 10"
+            else:
+                globals()["COMMAND"] = "shutdown -s -t 10"
             globals()["THREAD_RUNNING"] = True
             window = UI("Shutdown", delay)
         elif command == _sleep:
-            if system() == 'Windows': globals()["COMMAND"] = "timeout 10 & rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
-            else: globals()["COMMAND"] = "sleep 10; systemctl suspend"
+            if system() == 'Windows':
+                globals()[
+                    "COMMAND"] = "timeout 10 & rundll32.exe powrprof.dll,SetSuspendState 0,1,0"
+            else:
+                globals()["COMMAND"] = "sleep 10; systemctl suspend"
             globals()["THREAD_RUNNING"] = True
             window = UI("Sleep", delay)
         elif command == restart:
-            if system() == "Windows": globals()["COMMAND"] = "shutdown /r /t 10"
-            else: globals()["COMMAND"] = "shutdown -r -t 10"
+            if system() == "Windows":
+                globals()["COMMAND"] = "shutdown /r /t 10"
+            else:
+                globals()["COMMAND"] = "shutdown -r -t 10"
             globals()["THREAD_RUNNING"] = True
             window = UI("Restart", delay)
         conn.send('1'.encode(encoding='utf-8'))
@@ -177,7 +199,7 @@ if __name__ == "__main__":
             window.close()
             execute_command(conn)
         else:
-            bg = threading.Thread(target=counter, args=[window,conn,])
+            bg = threading.Thread(target=counter, args=[window, conn, ])
             bg.name = "COUNTER"
             bg.start()
             if window.show():
