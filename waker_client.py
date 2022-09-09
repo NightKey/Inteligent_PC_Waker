@@ -126,11 +126,14 @@ def retrive(_socket: socket):
     ret = ""
     try:
         while True:
-            size = int(_socket.recv(1).decode('utf-8'))
-            data = _socket.recv(size).decode('utf-8')
-            if data == '\n':
-                break
-            ret += data
+            try:
+                size = int(_socket.recv(1).decode('utf-8'))
+                data = _socket.recv(size).decode('utf-8')
+                if data == '\n':
+                    break
+                ret += data
+            except Exception as ex:
+                print(f"Exception occured during retriving: {ex}")
         print(f'Message: {ret}')
         return json.loads(ret)
     except Exception as ex:
@@ -146,11 +149,11 @@ def execute_command(connection):
         try:
             connection.send('1'.encode(encoding='utf-8'))
             print("Command finish sent")
+            while not window.closed:
+                sleep(1)
         except Exception as ex:
-            print("Command finish failed")
+            print("Command ACK failed")
             print(ex)
-        while not window.closed:
-            sleep(1)
         run(COMMAND)
 
 
