@@ -79,7 +79,7 @@ class UI:
             return DO
 
     def show(self):
-        while self.is_running and not self.closed:
+        while self.is_running and not self.closed and self.counter > 0:
             event, values = self.read(timeout=1)
             if event == "CANCLE" or event == "SKIP":
                 return self.work(event, values)
@@ -89,29 +89,17 @@ class UI:
         else:
             if not self.is_running:
                 self.close()
+            if self.counter <= 0:
+                return DO
+            else:
+                return DONT
 
 
-def counter(window, connection):
-    stop_timer = sha256(f"STOP{MAC}".encode('utf-8')).hexdigest()
-    inc_time = sha256(f"INC{MAC}".encode('utf-8')).hexdigest()
-    dec_time = sha256(f"DEC{MAC}".encode('utf-8')).hexdigest()
+def counter(window):
     while THREAD_RUNNING:
         if window.count_down():
-            execute_command(connection)
-        try:
-            command = retrive(connection)
-            if command == inc_time:
-                time = retrive(connection)
-                window.request_time_change(int(time))
-            elif command == dec_time:
-                time = retrive(connection)
-                window.request_time_change(int(time)*-1)
-            elif command == stop_timer:
-                window.close()
-        except:
-            pass
-        finally:
-            sleep(1)
+            print("Count down finished!")
+        sleep(1)
 
 
 def get_ip():
@@ -132,6 +120,8 @@ def retrive(_socket: socket):
                 if data == '\n':
                     break
                 ret += data
+            except TimeoutError:
+                pass
             except Exception as ex:
                 print(f"Exception occured during retriving: {ex}")
         print(f'Message: {ret}')
@@ -161,6 +151,7 @@ if __name__ == "__main__":
     shutdown = sha256(f"SHUTDOWN{MAC}".encode('utf-8')).hexdigest()
     _sleep = sha256(f"SLEEP{MAC}".encode('utf-8')).hexdigest()
     restart = sha256(f"RESTART{MAC}".encode('utf-8')).hexdigest()
+    print(f"Shutdown: {shutdown}")
     print(f'Sleep: {_sleep}')
     print(f'Restart: {restart}')
     print(f'MAC: {MAC}')
@@ -198,17 +189,20 @@ if __name__ == "__main__":
             window = UI("Restart", delay)
         conn.send('1'.encode(encoding='utf-8'))
         print("ACK sent")
+        print(f"Selected command: {COMMAND}")
         if delay == 0:
             window.close()
             execute_command(conn)
         else:
-            bg = threading.Thread(target=counter, args=[window, conn, ])
+            bg = threading.Thread(target=counter, args=[window, ])
             bg.name = "COUNTER"
             bg.start()
             if window.show():
+                print("WindowShow returned True")
                 window.close()
                 execute_command(conn)
             else:
+                print("WindowShow returned False")
                 window.close()
                 conn.send('0'.encode(encoding='utf-8'))
                 globals()["COMMAND"] = None
