@@ -1,4 +1,5 @@
 from shutil import copy
+from typing import Callable
 
 try:
     from wakeonlan import send_magic_packet
@@ -10,7 +11,7 @@ try:
     import json
     import random
     from getmac import get_mac_address
-    from smdb_api import API, Message
+    from smdb_api import API, Message, Interface
     from os import path, devnull
     import platform    # For getting the operating system name
     import subprocess  # For executing a shell command
@@ -50,8 +51,9 @@ class computer:
     manually_turned_off: bool = True
     pc_ip: str = None
     phone_last_online: datetime = None
+    telegramm: int = None
 
-    def __init__(self, id: str, pc: str, phone: str, name: str, discord_tag: str, is_time: bool, fix_ip: str = None) -> None:
+    def __init__(self, id: str, pc: str, phone: str, name: str, discord_tag: str, is_time: bool, fix_ip: str = None, telegramm: int = None) -> None:
         self.id = id
         self.pc = pc
         self.phone = phone
@@ -59,6 +61,7 @@ class computer:
         self.discord = discord_tag
         self.is_time = is_time
         self.fix_ip = fix_ip
+        self.telegramm = telegramm
 
 
 original_print = print
@@ -96,7 +99,7 @@ class computers:
             tmp = subprocess.call(command, stdout=dnull) == 0
         return tmp
 
-    def add_new(self, address, key, name, dc=None, id=None, ip=None):
+    def add_new(self, address, key, name, dc=None, id=None, ip=None, tg=None):
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
@@ -110,7 +113,7 @@ class computers:
         if key in self.stored:
             return "USED"  # KeyError("'KEY' already used for a computer.")
         self.stored[key] = computer(
-            self.id if id is None else id, address, key, name, dc, self.is_time(key), ip)
+            self.id if id is None else id, address, key, name, dc, self.is_time(key), ip, tg)
         if id is None:
             self.id += 0x1
         return False
@@ -254,7 +257,7 @@ class computers:
 
     def save_to_json(self):
         out = [{'phone': phone, 'pc': values.pc, 'name': values.name, "dc": values.discord,
-                "ip": values.fix_ip} for phone, values in self.stored.items()]
+                "ip": values.fix_ip, 'telegramm': values.telegramm} for phone, values in self.stored.items()]
         if path.exists('export.json'):
             copy("export.json", "export.json.bck")
         with open('export.json', 'w', encoding='utf-8') as f:
@@ -265,7 +268,7 @@ class computers:
             tmp = json.load(f)
         for item in tmp:
             self.add_new(item["pc"], item['phone'], item["name"], (item['dc']
-                         if 'dc' in item else None), ip=(item['ip'] if ip in item else None))
+                         if 'dc' in item else None), ip=(item['ip'] if 'ip' in item else None), tg=(item['telegramm'] if 'telegramm' in item else None))
 
     def is_MAC(self, _input):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
@@ -280,7 +283,7 @@ class computers:
 
 
 class data_edit:
-    def __init__(self, title, sender=None, pc=None, id=None, name=None, dc=None):
+    def __init__(self, title, sender=None, pc=None, id=None, name=None, dc=None, tg=None):
         """For editing the data
         """
         layout = [
@@ -292,6 +295,8 @@ class data_edit:
                 name if name is not None else ''), key="NAME")],
             [sg.Text("Discord név", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van"), sg.In(default_text=(
                 dc if dc is not None else ''), key="DC", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van")],
+            [sg.Text("Telegramm ID", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van"), sg.In(default_text=(
+                tg if tg is not None else ''), key="TG", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van")],
             [sg.Button("Mégsem", key="CANCLE"),
              sg.Button("Kész", key="FINISHED")]
         ]
@@ -310,7 +315,7 @@ class data_edit:
             return None
         elif event == "FINISHED":
             self.Close()
-            return [values["SENDER"], values["PC"], self.id, values["NAME"], values['DC']]
+            return [values["SENDER"], values["PC"], self.id, values["NAME"], values['DC'], values['TG']]
 
     def show(self):
         while self.is_running:
@@ -335,7 +340,7 @@ class main_window:
         self.call_back = call_back
         self.pcs = pcs
         self.delete = delete
-        self.get_items = get_items
+        self.get_items: Callable[[str], computers] = get_items
         self.ui_wake = ui_wake
         self.shutdown_pc = shutdown_pc
         self.selected = None
@@ -364,7 +369,7 @@ class main_window:
                 if self.selected is not None:
                     data = self.get_items(self.selected)
                     tmp = data_edit(
-                        "Szerkesztés", data[0], data[1].pc, data[1].id, data[1].name, data[1].discord)
+                        "Szerkesztés", data[0], data[1].pc, data[1].id, data[1].name, data[1].discord, data[1].telegramm)
                     self.selected = None
             if tmp is not None:
                 new_data = tmp.show()
@@ -716,9 +721,9 @@ def ui_update():
     window.update_UI(pcs)
 
 
-def api_send(msg, user=None):
+def api_send(msg, user=None, interface=Interface.Discord):
     try:
-        _api.send_message(msg, user)
+        _api.send_message(message=msg, interface=interface, destination=user)
     except:
         print("API not avaleable!")
 
