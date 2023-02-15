@@ -724,8 +724,9 @@ def ui_update():
 def api_send(msg, user=None, interface=Interface.Discord):
     try:
         _api.send_message(message=msg, interface=interface, destination=user)
-    except:
-        print("API not avaleable!")
+    except Exception as ex:
+        print("API exception!")
+        print(ex)
 
 
 def api_sleep(message):
@@ -796,10 +797,15 @@ def api_shutdown(message):
     get_api_shutdown_sleep(message, SHUTDOWN)
 
 
-def api_wake(message):
+def api_wake(message: Message):
     try:
         print(f"Wake {message.sender}")
-        pcs.wake(pcs.get_by_name(message.sender), False)
+        user = pcs.get_by_name(message.sender)
+        if not user:
+            api_send("Your account is not connected to any PC on the list",
+                     message.sender, message.interface)
+            return
+        pcs.wake(user, False)
         ui_update()
     except Exception as ex:
         print(f"Exception in api_wake: {ex}")
