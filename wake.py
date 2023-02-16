@@ -144,7 +144,7 @@ class computers:
     def changed(self, data):
         del self.stored[self.get_by_id(data[2])]
         self.add_new(address=data[1], key=data[0],
-                     name=data[3], dc=data[4], id=data[2], tg=data[6])
+                     name=data[3], dc=data[4], id=data[2], tg=data[5])
 
     def remove(self, other):
         del self.stored[other]
@@ -257,7 +257,7 @@ class computers:
 
     def save_to_json(self):
         out = [{'phone': phone, 'pc': values.pc, 'name': values.name, "dc": values.discord,
-                "ip": values.fix_ip, 'telegramm': values.telegramm} for phone, values in self.stored.items()]
+                'telegramm': values.telegramm} for phone, values in self.stored.items()]
         if path.exists('export.json'):
             copy("export.json", "export.json.bck")
         with open('export.json', 'w', encoding='utf-8') as f:
@@ -935,3 +935,7 @@ except Exception as ex:
     if _api.valid:
         _api.close("Fatal exception occured")
     input(f"Excepton: {ex}\nPress return to exit!")
+finally:
+    window.Close()
+    if _api.valid:
+        _api.close("Closed")
