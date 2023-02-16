@@ -144,7 +144,7 @@ class computers:
     def changed(self, data):
         del self.stored[self.get_by_id(data[2])]
         self.add_new(address=data[1], key=data[0],
-                     name=data[3], dc=data[4], id=data[2])
+                     name=data[3], dc=data[4], id=data[2], tg=data[6])
 
     def remove(self, other):
         del self.stored[other]
@@ -923,7 +923,8 @@ Computers_data_keys = [
     "pc_ip",
     "last_signal",
     "manually_turned_off",
-    "is_time"]
+    "is_time",
+    "telegramm"]
 
 init_api()
 setup()
