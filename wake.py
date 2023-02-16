@@ -153,7 +153,7 @@ class computers:
         name = name.strip()
         print(f"Searching for {name}")
         for key, values in self.stored.items():
-            if values.name == name or values.discord == name:
+            if values.name == name or values.discord == name or values.telegramm == name:
                 return key
         else:
             return False
