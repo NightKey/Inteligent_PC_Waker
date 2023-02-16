@@ -680,7 +680,7 @@ def call_back(_type, data):
     global pcs
     if _type == "NEW":
         ret = pcs.add_new(
-            address=data[1], key=data[0], name=data[3], dc=data[4], id=data[2])
+            address=data[1], key=data[0], name=data[3], dc=data[4], id=data[2], tg=data[5])
     elif _type == "EDIT":
         ret = pcs.changed(data)
     if not ret:
