@@ -238,7 +238,7 @@ class computers:
             self.send(self.get_random_welcome(),
                       user=self.stored[phone].discord)
         elif self.send is not None:
-            self.send("Done", user=self.stored[phone].discord)
+            return "Done"
 
     def reset_state(self, phone, size):
         if size is TINY:
@@ -528,8 +528,10 @@ SLEEP = 1
 RESTART = 2
 
 
-def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
+def shutdown_pc(phone, delay=None, _command=SHUTDOWN, user=None, interface=Interface.Discord):
     try:
+        if user is None:
+            user = globals()['pcs'][phone].discord
         print(f'Shutdown {phone}')
         if phone not in pcs.stored:
             phone = pcs.get_by_name(phone)
@@ -540,14 +542,14 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
         if IP is None:
             print(f"IP not found for {phone} PC")
             api_send(f"IP not found for {phone} PC",
-                     user=globals()['pcs'][phone].discord)
+                     user=user, interface=interface)
             return
         try:
             actual_delay = Delay(delay)
         except NotDelayException as e:
             print(f"{delay} not a correct delay value!")
             api_send(f"{delay} not a correct delay value!",
-                     user=globals()['pcs'][phone].discord)
+                     user=user, interface=interface)
             return
         try:
             _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -558,8 +560,8 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             send(_socket, actual_delay.secunds)
             try:
                 _socket.recv(5).decode("utf-8")
-                api_send(f"Initiated '{command.lower()}' command!", user=globals()[
-                         'pcs'][phone].discord)
+                api_send(
+                    f"Initiated '{command.lower()}' command!", user=user, interface=interface)
                 print(f"{phone} ACK arrived!")
                 t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()[
                                      'pcs'][phone].name, actual_delay.secunds*2, ])
@@ -568,12 +570,12 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN):
             except TimeoutError:
                 print(
                     f"Acknolagement didn't arrive for {globals()['pcs'][phone].name}!")
-                api_send(f"Pc did not react to the {command.lower()} command!", user=globals()[
-                         'pcs'][phone].discord)
+                api_send(
+                    f"Pc did not react to the {command.lower()} command!", user=user, interface=interface)
         except Exception as ex:
             print(f"Exception in shutdown_pc send: {ex}")
-            api_send(f"Excepption during shutdown sending: {ex}", user=globals()[
-                     'pcs'][phone].discord)
+            api_send(
+                f"Excepption during shutdown sending: {ex}", user=user, interface=interface)
     except Exception as ex:
         print(f"Exception in shutdown_pc: {ex}")
 
@@ -788,7 +790,8 @@ def get_api_shutdown_sleep(message: Message, command):
                 api_send(
                     "Only admins allowed to shutdown/sleep other users!", user=requester)
                 return
-        shutdown_pc(requester, delay, _command=command)
+        shutdown_pc(requester, delay, _command=command,
+                    user=message.sender, interface=message.interface)
     except Exception as ex:
         print(f"Exception in get_api_shutdown_sleep: {ex}")
 
@@ -805,7 +808,7 @@ def api_wake(message: Message):
             api_send("Your account is not connected to any PC on the list",
                      message.sender, message.interface)
             return
-        pcs.wake(user, False)
+        api_send(pcs.wake(user, False), message.sender, message.interface)
         ui_update()
     except Exception as ex:
         print(f"Exception in api_wake: {ex}")
