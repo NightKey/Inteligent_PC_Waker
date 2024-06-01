@@ -26,7 +26,7 @@ except Exception as ex:
     pre = "sudo " if system() == 'Linux' else ""
     post = " --user" if system() == 'Windows' else ""
     interpreter = 'python' if system() == 'Windows' else 'python3'
-    run(f"{pre}{interpreter} -m pip install{post} -r dependencies.txt")
+    run(f"{pre}{interpreter} -m pip install{post} --upgrade -r dependencies.txt")
     if system() == "Linux":
         run("sudo apt install net-tools")
     ext = "sh" if system() == 'Linux' else "exe"
