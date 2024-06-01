@@ -1,5 +1,4 @@
 from shutil import copy
-from typing import Callable
 
 try:
     from wakeonlan import send_magic_packet
@@ -15,7 +14,6 @@ try:
     from os import path, devnull
     import platform    # For getting the operating system name
     import subprocess  # For executing a shell command
-    import PySimpleGUI as sg
     from datetime import datetime, timedelta
     from datetime import time as dtime
     from hashlib import sha256
@@ -77,14 +75,10 @@ class computers:
     def __init__(self, send=None):
         self.stored: dict[str, computer] = {}
         self.id = 0x0
-        self.window = None
         self.send = send
         self.random_welcome: list = []
         with open("welcomes.txt", 'r', encoding="utf-8") as f:
             self.random_welcome: list = f.read(-1).split('\n')
-
-    def set_window(self, window):
-        self.window = window
 
     def ping(self, host):
         """
@@ -213,8 +207,6 @@ class computers:
                         shutdown_pc(phone)
                     self.stored[phone].last_signal = datetime.now()
                 self.reset_state(phone, FULL)
-        else:
-            self.window()
 
     def wake_everyone(self):
         for key in self.stored.keys():
@@ -281,145 +273,12 @@ class computers:
             return False
         return True
 
-
-class data_edit:
-    def __init__(self, title, sender=None, pc=None, id=None, name=None, dc=None, tg=None):
-        """For editing the data
-        """
-        layout = [
-            [sg.Text("Telefon MAC címe vagy időpont/intervallum"),
-             sg.In(default_text=(sender if sender is not None else ''), key="SENDER")],
-            [sg.Text("PC MAC címe"), sg.In(default_text=(
-                pc if pc is not None else ''), key="PC")],
-            [sg.Text("Megjelenítendő név"), sg.In(default_text=(
-                name if name is not None else ''), key="NAME")],
-            [sg.Text("Discord név", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van"), sg.In(default_text=(
-                dc if dc is not None else ''), key="DC", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van")],
-            [sg.Text("Telegramm ID", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van"), sg.In(default_text=(
-                tg if tg is not None else ''), key="TG", tooltip="Csak, ha a server monitoring discord bot elérhető, és az API jelen van")],
-            [sg.Button("Mégsem", key="CANCLE"),
-             sg.Button("Kész", key="FINISHED")]
-        ]
-        self.window = sg.Window(title, layout)
-        self.read = self.window.read
-        self.is_running = True
-        self.id = id
-
-    def Close(self):
-        self.is_running = False
-        self.window.Close()
-
-    def work(self, event, values):
-        if event == "CANCLE" or event == sg.WIN_CLOSED:
-            self.Close()
-            return None
-        elif event == "FINISHED":
-            self.Close()
-            return [values["SENDER"], values["PC"], self.id, values["NAME"], values['DC'], values['TG']]
-
-    def show(self):
-        while self.is_running:
-            event, values = self.read()
-            ret = self.work(event, values)
-        return ret
-
-
-class main_window:
-    def __init__(self, pcs, call_back, delete, get_items, ui_wake, shutdown_pc):
-        sg.theme("dark")
-        layout = [
-            [sg.Listbox(values=pcs, key="PCS", size=(
-                75, 25), enable_events=True)],
-            [sg.Button("Új kapcsolat", key="NEW"), sg.Button("Szerkesztés", key="EDIT"), sg.Button("Törlés", key="DELETE"), sg.Combo(
-                ['ÉBRESZTÉS', 'KIKAPCSOLÁS', 'ALTATÁS', "ÚJRAINDÍTÁS"], default_value="ÉBRESZTÉS", key="SELECTION", size=(20, 1)), sg.Button("Csináld", key="RUN")],
-            [sg.Checkbox("Disable auto shutdown", key="DAS", default=das)]
-        ]
-        self.window = sg.Window("IPW", layout, finalize=True)
-        self.read = self.window.read
-        self.is_running = True
-        self.call_back = call_back
-        self.pcs = pcs
-        self.delete = delete
-        self.get_items: Callable[[str], computers] = get_items
-        self.ui_wake = ui_wake
-        self.shutdown_pc = shutdown_pc
-        self.selected = None
-        self.request_update = False
-        self.request_close = False
-
-    def work(self, event, values) -> bool:
-        if event == sg.WINDOW_CLOSED or self.request_close:
-            self._Close()
-            return False
-        elif event == "PCS":
-            self.selected = values["PCS"][0].split('-')[0]
-            print(f"Selected: {self.get_items(self.selected)}")
-            return True
-        elif event == "DELETE":
-            if self.selected is not None:
-                self.delete(self.selected)
-                self.selected = None
-            return True
-        elif event == "NEW" or event == "EDIT":
-            tmp: data_edit = None
-            new_data: list = None
-            if event == "NEW":
-                tmp = data_edit(title="Új adat felvétele")
-            else:
-                if self.selected is not None:
-                    data = self.get_items(self.selected)
-                    tmp = data_edit(
-                        "Szerkesztés", data[0], data[1].pc, data[1].id, data[1].name, data[1].discord, data[1].telegramm)
-                    self.selected = None
-            if tmp is not None:
-                new_data = tmp.show()
-            if new_data is not None:
-                self.call_back(event, new_data)
-            return True
-        elif event == "RUN":
-            if self.selected is not None:
-                if values['SELECTION'] == "ÉBRESZTÉS":
-                    self.update_UI(self.ui_wake(self.selected))
-                elif values['SELECTION'] == "KIKAPCSOLÁS":
-                    self.shutdown_pc(self.selected)
-                elif values['SELECTION'] == "ALTATÁS":
-                    self.shutdown_pc(self.selected, _command=SLEEP)
-                elif values['SELECTION'] == "ÚJRAINDÍTÁS":
-                    self.shutdown_pc(self.selected, _command=RESTART)
-            return True
-        elif event == "DAS":
-            das = values['DAS']
-        elif event == "__TIMEOUT__":
-            if self.request_update:
-                self.window["PCS"].Update(self.pcs)
-                self.request_update = False
-            return True
-
-    def update_UI(self, pcs):
-        self.pcs = pcs
-        self.request_update = True
-
-    def show(self):
-        while self.is_running:
-            event, values = self.read()
-            self.work(event, values)
-
-    def Close(self):
-        self.request_close = True
-
-    def _Close(self):
-        self.window.Close()
-        self.is_running = False
-        save_data()
-
-
 class NotDelayException(Exception):
     message: str
 
     def __init__(self, message):
         super(message)
         self.message = message
-
 
 class Delay:
     min_shutdown_dilay = 10
@@ -478,13 +337,11 @@ class Delay:
             actual_delay = Delay.min_shutdown_dilay
         self.secunds = actual_delay
 
-
 loop_run = True
 dont_wake_after = dtime.fromisoformat("22:00")
 dont_wake_before = dtime.fromisoformat("06:00")
 
 _api: API = None
-window: main_window = None
 check_loop: threading.Thread = None
 pcs: computers = None
 ip = None
@@ -495,13 +352,11 @@ SMALL = 1
 PARTIAL = 2
 FULL = 3
 
-
 def restart():
     from os import system as run
     from platform import system
     ext = "sh" if system() == 'Linux' else "exe"
     run(f"./restarter.{ext}")
-
 
 def retrive_confirmation(socket: socket.socket, name: str, delay: int):
     start_time = time.time()
@@ -522,11 +377,9 @@ def retrive_confirmation(socket: socket.socket, name: str, delay: int):
     print(f"{name} {ansv}")
     api_send(ansv, user=pcs[pcs.get_by_name(name)].discord)
 
-
 SHUTDOWN = 0
 SLEEP = 1
 RESTART = 2
-
 
 def shutdown_pc(phone, delay=None, _command=SHUTDOWN, user=None, interface=Interface.Discord):
     try:
@@ -579,7 +432,6 @@ def shutdown_pc(phone, delay=None, _command=SHUTDOWN, user=None, interface=Inter
     except Exception as ex:
         print(f"Exception in shutdown_pc: {ex}")
 
-
 def scan(_ip, pre_scann=False):
     ip = _ip.split(".")
     del ip[-1]
@@ -600,13 +452,11 @@ def scan(_ip, pre_scann=False):
     #print(f"Finished under {finish-start} s")
     return [mc, start, finish]
 
-
 def dump_to_file(arg):
     """Dumps the arg to a file. arg must be json-like.
     """
     with open("DUMP.txt", "w") as f:
         json.dump(arg, f)
-
 
 def send(socket, msg):
     msg = json.dumps(msg)
@@ -623,15 +473,12 @@ def send(socket, msg):
             break
         msg = tmp
 
-
 def get_data(name):
     key = pcs.get_by_name(name)
     return [key, pcs[key]]
 
-
 def avg(inp):
     return sum(inp)/len(inp)
-
 
 def loop():
     global ip
@@ -649,21 +496,18 @@ def loop():
         counter += 1
         time.sleep(1)
 
-
 def main():
     global loop_run
-    global window
     while True:
-        if(not window.work(*window.read(timeout=1))):
+        try:
+            time.sleep(0.3)
+        except KeyboardInterrupt:
             break
-        time.sleep(0.3)
     loop_run = False
-
 
 def save():
     with open("pcs", 'bw') as f:
         pickle.dump(pcs, f)
-
 
 def get_ip():
     global ip
@@ -672,56 +516,21 @@ def get_ip():
     ip = s.getsockname()[0]
     s.close()
 
-
 def add_new_pc(address, phone):
     pcs.add_new(address, phone)
 
-
-def call_back(_type, data):
-    #data = [values["SENDER"], values.pc, self.id, values.name, values['DC']]
-    global pcs
-    if _type == "NEW":
-        ret = pcs.add_new(
-            address=data[1], key=data[0], name=data[3], dc=data[4], id=data[2], tg=data[5])
-    elif _type == "EDIT":
-        ret = pcs.changed(data)
-    if not ret:
-        window.update_UI(pcs)
-    else:
-        sg.popup(ret, "Error")
-    pcs.save_to_json()
-    save()
-
-
 def delete(name):
     pcs.remove(pcs.get_by_name(name))
-    window.update_UI(pcs)
-
 
 def save_data():
     pcs.save_to_json()
     save()
 
-
 def update(*_):
     import updater
     if updater.main():
-        window.Close()
         _api.close("Update")
-        while window.is_running:
-            time.sleep(0.1)
         restart()
-
-
-def UI_wake(name):
-    print(f"Wake {name}")
-    pcs.wake(pcs.get_by_name(name))
-    return pcs
-
-
-def ui_update():
-    window.update_UI(pcs)
-
 
 def api_send(msg, user=None, interface=Interface.Discord):
     try:
@@ -730,10 +539,8 @@ def api_send(msg, user=None, interface=Interface.Discord):
         print("API exception!")
         print(ex)
 
-
 def api_sleep(message):
     get_api_shutdown_sleep(message, SLEEP)
-
 
 def get_target_name(data: list):
     if pcs.get_by_name(data[0]):
@@ -744,7 +551,6 @@ def get_target_name(data: list):
         n = 0
     return [name, n]
 
-
 def get_target_name_discord_tag(id: str, data: list):
     name = _api.get_username(id)
     if Delay.convertable_to_int(data[0]):
@@ -752,7 +558,6 @@ def get_target_name_discord_tag(id: str, data: list):
     else:
         n = 1
     return [name, n]
-
 
 def determine_delay_for_api_call(delay: list, has_user: bool, user_id: str):
     name = None
@@ -765,7 +570,6 @@ def determine_delay_for_api_call(delay: list, has_user: bool, user_id: str):
         actual_delay = delay[n]
     return [name, actual_delay]
 
-
 def is_directed_command(delay):
     if delay is None:
         return False
@@ -774,7 +578,6 @@ def is_directed_command(delay):
     if Delay.is_delay(delay):
         return False
     return True
-
 
 def get_api_shutdown_sleep(message: Message, command):
     try:
@@ -795,10 +598,8 @@ def get_api_shutdown_sleep(message: Message, command):
     except Exception as ex:
         print(f"Exception in get_api_shutdown_sleep: {ex}")
 
-
 def api_shutdown(message):
     get_api_shutdown_sleep(message, SHUTDOWN)
-
 
 def api_wake(message: Message):
     try:
@@ -809,16 +610,13 @@ def api_wake(message: Message):
                      message.sender, message.interface)
             return
         api_send(pcs.wake(user, False), message.sender, message.interface)
-        ui_update()
     except Exception as ex:
         print(f"Exception in api_wake: {ex}")
-
 
 def status(message):
     if _api.valid:
         if (not _api.send_message(pcs.get_UI_list(), destination=message.channel)):
             _api.send_message(pcs.get_UI_list(), destination=message.sender)
-
 
 def Computers_test(computers: computers):
     for line in Computers_functions:
@@ -830,7 +628,6 @@ def Computers_test(computers: computers):
         for line in Computers_data_keys:
             getattr(data, line)
         break
-
 
 def init_api():
     global _api
@@ -848,13 +645,10 @@ def init_api():
     _api.create_function(
         "PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
 
-
 def print(data):
     original_print(f"[{datetime.now()}]: {data}")
 
-
 def setup():
-    global window
     global check_loop
     global pcs
     if path.exists("pcs"):
@@ -876,13 +670,9 @@ def setup():
             pcs.import_from_json()
             save()
         print("Reimport finished")
-    window = main_window(pcs, call_back, delete,
-                         get_data, UI_wake, shutdown_pc)
-    pcs.set_window(ui_update)
     check_loop = threading.Thread(target=loop)
     check_loop.name = "Wake check loop"
     check_loop.start()
-
 
 get_ip()
 
@@ -939,6 +729,5 @@ except Exception as ex:
         _api.close("Fatal exception occured")
     input(f"Excepton: {ex}\nPress return to exit!")
 finally:
-    window.Close()
     if _api.valid:
         _api.close("Closed")
