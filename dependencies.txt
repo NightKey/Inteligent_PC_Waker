@@ -4,4 +4,4 @@ getmac
 smdb_api
 PySimpleGUI
 discord
-request
+requests
