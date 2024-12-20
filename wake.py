@@ -1,7 +1,10 @@
+from enum import Enum
 from shutil import copy
+from typing import Union, Dict
 
 try:
     from wakeonlan import send_magic_packet
+    from dataclasses import dataclass, field
     import re
     import socket
     import threading
@@ -9,15 +12,15 @@ try:
     import pickle
     import json
     import random
-    from getmac import get_mac_address
     from smdb_api import API, Message, Interface
+    from smdb_logger import Logger, LEVEL
     from os import path, devnull
     import platform    # For getting the operating system name
     import subprocess  # For executing a shell command
     from datetime import datetime, timedelta
     from datetime import time as dtime
     from hashlib import sha256
-    import arpsim
+    from arpsim import scan_local
 except Exception as ex:
     from os import system as run
     from platform import system
@@ -32,51 +35,56 @@ except Exception as ex:
     print(f"{type(ex)} -> {ex}")
     exit()
 
+@dataclass
+class User:
+    name: str
+    discord: str
+    telegram: str
+    phone: str
 
-class computer:
-    id: int = None
-    pc: str = None
-    phone: str = None
-    name: str = None
-    discord: str = None
-    last_online: datetime = None
-    was_wakened: bool = False
-    is_online: bool = False
-    is_time: bool = None
-    was_online: bool = False
-    wake_time: datetime = None
-    last_signal: datetime = None
-    manually_turned_off: bool = True
-    pc_ip: str = None
-    phone_last_online: datetime = None
-    telegramm: int = None
+class Status(Enum):
+    ONLINE = 0
+    WAKING = 1
+    M_SHUTTING_DOWN =  2
+    A_SHUTTING_DOWN = 3
+    MANUALLY_OFF =  4
+    AUTOMATIC_OFF =  5
 
-    def __init__(self, id: str, pc: str, phone: str, name: str, discord_tag: str, is_time: bool, fix_ip: str = None, telegramm: int = None) -> None:
-        self.id = id
-        self.pc = pc
-        self.phone = phone
-        self.name = name
-        self.discord = discord_tag
-        self.is_time = is_time
-        self.fix_ip = fix_ip
-        self.telegramm = telegramm
+@dataclass
+class PC:
+    id: int
+    MAC_address: str
+    owner: User
+    ip_address: Union[str, None] = field(init=False, default=None)
+    status: Status = field(init=False, default=Status.AUTOMATIC_OFF)
+    last_online: datetime = field(init=False, default=datetime(2024, 12, 1))
 
+    def update_status(self, new_status: Status):
+        if(self.status == Status.ONLINE and new_status in [Status.MANUALLY_OFF, Status.AUTOMATIC_OFF]):
+            self.last_online = time.time()
+        self.status = new_status
+    
+    def update_owner(self, new_owner: User):
+        self.owner = new_owner
+    
+    def update_ip(self, new_ip: str):
+        self.ip_address = new_ip
 
-original_print = print
-
-
-class computers:
+class Computers:
     """Stores multiple computer-phone address pairs.
     Can only send a wake package to a given PC, if the phone address is provided, and the PC wasn't waken before, or it were restored.
     """
     TIMES = {"pbt": 5, "pbst": 7, "msrt": 30, "st": 60,
              "stsd": 1}  # [Pass by time, Pass by shut off time, Manual state reset time, Shutdown time, Shutdown time signal delta]
 
-    def __init__(self, send=None):
-        self.stored: dict[str, computer] = {}
+    VERSION = 1.0
+
+    def __init__(self, send=None, version: float = VERSION):
+        self.stored: dict[str, PC] = {}
         self.id = 0x0
         self.send = send
         self.random_welcome: list = []
+        self.version = version
         with open("welcomes.txt", 'r', encoding="utf-8") as f:
             self.random_welcome: list = f.read(-1).split('\n')
 
@@ -93,32 +101,28 @@ class computers:
             tmp = subprocess.call(command, stdout=dnull) == 0
         return tmp
 
-    def add_new(self, address, key, name, dc=None, id=None, ip=None, tg=None):
+    def add_new(self, pc_mac: str, phone_mac: str, user_name: str, discord_id=None, user_id=None, pc_ip=None, telegram_id=None):
         """
         Adds a new PHONE-PC connection. One phone can only be used to power on one PC
         """
-        address == address.replace("-", ":")
-        key == key.replace("-", ":")
-        if not self.is_MAC(address):
-            return "PC"  # TypeError("'address' should be a MAC address")
-        if not self.is_MAC(key) or self.is_time(key):
-            # TypeError("'KEY' should be a MAC address or time intervall (0:00-12:00)")
+        pc_mac = pc_mac.replace("-", ":")
+        phone_mac = phone_mac.replace("-", ":")
+        if not self.is_MAC(pc_mac):
+            return "PC"
+        if not self.is_MAC(phone_mac) or self.is_time(phone_mac):
             return "KEY"
-        if key in self.stored:
-            return "USED"  # KeyError("'KEY' already used for a computer.")
-        self.stored[key] = computer(
-            self.id if id is None else id, address, key, name, dc, self.is_time(key), ip, tg)
-        if id is None:
+        if phone_mac in self.stored:
+            return "USED"
+        self.stored[phone_mac] = PC(self.id if user_id is None else user_id, pc_mac, User(user_name, discord_id, telegram_id, phone_mac))
+        if user_id is None:
             self.id += 0x1
         return False
 
     def get_UI_list(self):
-        """Returns a list for the UI containing the following format:
-        name - offline/WOL sent
-        """
+        """Returns a list for the UI containing the following format:"""
         ret = []
         for item in self.stored.values():
-            ret.append(f"{item.name} - {'WOL sent' if item.was_wakened and (not item.was_online or (item.wake_time is not None and datetime.now() - item.wake_time < timedelta(minutes=2))) else 'Online' if item.is_online else 'Offline'}")
+            ret.append(f"{item.owner.name} - {item.status.name}")
         return ret
 
     def __len__(self):
@@ -137,17 +141,17 @@ class computers:
 
     def changed(self, data):
         del self.stored[self.get_by_id(data[2])]
-        self.add_new(address=data[1], key=data[0],
-                     name=data[3], dc=data[4], id=data[2], tg=data[5])
+        self.add_new(pc_mac=data[1], phone_mac=data[0],
+                     user_name=data[3], discord_id=data[4], user_id=data[2], telegram_id=data[5])
 
     def remove(self, other):
         del self.stored[other]
 
-    def get_by_name(self, name):
+    def get_by_name(self, name: str):
         name = name.strip()
         print(f"Searching for {name}")
         for key, values in self.stored.items():
-            if values.name == name or values.discord == name or values.telegramm == name:
+            if values.owner.name == name or values.owner.discord == name or values.owner.telegram == name:
                 return key
         else:
             return False
@@ -157,56 +161,42 @@ class computers:
             if value.id == id:
                 return key
 
-    def iterate(self, resoults):
-        if resoults == {}:
+    def iterate(self, results: Dict[str, str]):
+        if results == {}:
             return
         for phone, data in self.stored.items():
-            PC_Online = (data.pc.upper() in resoults)
-            self.stored[phone].is_online = PC_Online
-            if PC_Online and not self.stored[phone].was_online:
-                self.stored[phone].was_online = True
-            if PC_Online and self.stored[phone].pc_ip is None:
-                self.stored[phone].pc_ip = resoults[self.stored[phone].pc]
+            PC_Online = (data.MAC_address.upper() in results)
+            if PC_Online:
+                data.status = Status.ONLINE
+                if data.status == Status.A_SHUTTING_DOWN:
+                    data.status = Status.AUTOMATIC_OFF
+            else:
+                if data.status == Status.A_SHUTTING_DOWN:
+                    data.status = Status.AUTOMATIC_OFF
+                else:
+                    data.status = Status.MANUALLY_OFF
+            if PC_Online and data.ip_address is None:
+                data.ip_address = results[data.MAC_address]
             elif not PC_Online:
-                self.stored[phone].pc_ip = None
-            if data.is_time:
-                try:
-                    tmp = phone.split("-")
-                except:
-                    tmp = [phone, None]
-                now = datetime.now().strftime("%H:%M")
-                if tmp[0] == now:
+                data.ip_address = None
+            if phone.upper() in results:  # Wake, if not online
+                data.last_online = datetime.now()
+                if data.status == Status.AUTOMATIC_OFF:
                     self.wake(phone)
-                elif tmp[1] == now:
-                    if not das:
-                        shutdown_pc(phone)
-                    self.reset_state(phone, FULL)
-                continue
-            if phone.upper() in resoults:  # Wake, if not online
-                data.phone_last_online = datetime.now()
-                if not data.was_wakened and not data.manually_turned_off:
-                    if PC_Online:
-                        data.was_wakened = True
-                        data.wake_time = datetime.now()
+                elif data.status == Status.WAKING:
+                    if not PC_Online:
+                        self.reset_state(phone, Reset.FORCE_MANUAL_OFF)
                     else:
-                        self.wake(phone)
-                elif data.was_wakened and not PC_Online and data.was_online:
-                    self.reset_state(phone, PARTIAL)
-            elif data.was_wakened and (data.phone_last_online is None or datetime.now()-data.phone_last_online > timedelta(minutes=computers.TIMES["pbt"])):
-                self.reset_state(phone, TINY)  # Pass by time
-                if PC_Online and data.wake_time is not None and datetime.now()-data.wake_time <= timedelta(minutes=computers.TIMES["pbst"]):
-                    if not das:
-                        shutdown_pc(phone)  # Pass by shut off time
-            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=computers.TIMES["msrt"]) and data.manually_turned_off:
-                self.reset_state(phone, SMALL)  # Manual state reset time
+                        data.status = Status.ONLINE
+            elif data.status in [Status.ONLINE, Status.WAKING] and (data.last_online is None or datetime.now()-data.last_online > timedelta(minutes=Computers.TIMES["pbt"])):
+                shutdown_pc(phone)  # Pass by shut off time
+                logger.info(f"Shutting down {data.owner.name}, phone offline for {Computers.TIMES['pbt']} minutes.")
+            elif data.last_online is not None and datetime.now()-data.last_online >= timedelta(minutes=Computers.TIMES['msrt']) and data.status == Status.MANUALLY_OFF:
+                self.reset_state(phone, Reset.FORCE_AUTO_OFF)  # Manual state reset time
             # Shutdown time
-            elif data.phone_last_online is not None and datetime.now()-data.phone_last_online >= timedelta(minutes=computers.TIMES["st"]):
+            elif data.last_online is not None and datetime.now()-data.last_online >= timedelta(minutes=Computers.TIMES["st"]):
                 # Shutdown time signal delta
-                if data.pc_ip is not None and (data.last_signal is None or datetime.now()-data.last_signal > timedelta(minutes=computers.TIMES["stsd"])):
-                    if not das:
-                        shutdown_pc(phone)
-                    self.stored[phone].last_signal = datetime.now()
-                self.reset_state(phone, FULL)
+                self.reset_state(phone, Reset.FULL)
 
     def wake_everyone(self):
         for key in self.stored.keys():
@@ -220,36 +210,32 @@ class computers:
 
     def wake(self, phone, automatic=True):
         if automatic and (datetime.now().time() < dont_wake_before or datetime.now().time() > dont_wake_after):
-            self.reset_state(phone, PARTIAL)
+            self.reset_state(phone, Reset.FORCE_MANUAL_OFF)
             return
-        print(f"Waking {self.stored[phone].name}")
-        send_magic_packet(self.stored[phone].pc, ip_address="192.168.0.255")
-        self.stored[phone].was_wakened = True
-        self.stored[phone].wake_time = datetime.now()
+        logger.info(f"Waking {self.stored[phone].owner.name}")
+        tmp = ip.split(".")[:-1]
+        tmp.append("255")
+        send_magic_packet(self.stored[phone].MAC_address, ip_address=".".join(tmp))
+        self.stored[phone].status = Status.WAKING
         if self.send is not None and automatic:
-            self.send(self.get_random_welcome(),
-                      user=self.stored[phone].discord)
+            self.send(self.get_random_welcome(), user=self.stored[phone].owner.discord)
         elif self.send is not None:
             return "Done"
 
     def reset_state(self, phone, size):
-        if size is TINY:
-            self.stored[phone].was_wakened = False
-            print(f"{self.stored[phone].name} offline for 5 minutes.")
-        elif size is SMALL:
-            self.stored[phone].manually_turned_off = False
-            print(f"{self.stored[phone].name} PC can be wakened")
-        elif size is PARTIAL:
-            self.stored[phone].was_online = False
-            self.stored[phone].manually_turned_off = True
-            print(f"{self.stored[phone].name} PC went offline.")
-        elif size is FULL:
-            self.stored[phone].phone_last_online = None
-            print(f"{self.stored[phone].name} state reseted")
+        if size is Reset.FORCE_AUTO_OFF:
+            self.stored[phone].status = Status.AUTOMATIC_OFF
+            logger.debug(f"{self.stored[phone].owner.name} PC can be wakened")
+        elif size is Reset.FORCE_MANUAL_OFF:
+            self.stored[phone].status = Status.MANUALLY_OFF
+            logger.debug(f"{self.stored[phone].owner.name} PC went offline.")
+        elif size is Reset.FULL:
+            self.stored[phone].last_online = None
+            logger.debug(f"{self.stored[phone].owner.name} state reseted")
 
     def save_to_json(self):
-        out = [{'phone': phone, 'pc': values.pc, 'name': values.name, "dc": values.discord,
-                'telegramm': values.telegramm} for phone, values in self.stored.items()]
+        out = [{'phone': phone, 'pc': values.MAC_address, 'name': values.owner.name, "dc": values.owner.discord,
+                'telegramm': values.owner.telegram} for phone, values in self.stored.items()]
         if path.exists('export.json'):
             copy("export.json", "export.json.bck")
         with open('export.json', 'w', encoding='utf-8') as f:
@@ -260,15 +246,15 @@ class computers:
             tmp = json.load(f)
         for item in tmp:
             self.add_new(item["pc"], item['phone'], item["name"], (item['dc']
-                         if 'dc' in item else None), ip=(item['ip'] if 'ip' in item else None), tg=(item['telegramm'] if 'telegramm' in item else None))
+                         if 'dc' in item else None), pc_ip=(item['ip'] if 'ip' in item else None), telegram_id=(item['telegramm'] if 'telegramm' in item else None))
 
-    def is_MAC(self, _input):
+    def is_MAC(self, _input: str):
         _input.replace("-", ':').replace(".", ':').replace(" ", ':')
         if re.match(r"([a-fA-F0-9]{2}[:-]){5}([a-fA-F0-9]{2})", _input) is None:
             return False
         return True
 
-    def is_time(self, _input):
+    def is_time(self, _input: str):
         if re.match(r"^((([0-1]{0,1}\d)|(2[0-3])):([0-5]\d)-(([0-1]{0,1}\d)|(2[0-3])):([0-5]\d)){1}", _input) is None and re.match(r"^((([0-1]{0,1}\d)|(2[0-3])):([0-5]\d)){1}", _input) is None:
             return False
         return True
@@ -284,7 +270,7 @@ class Delay:
     min_shutdown_dilay = 10
     default_shutdown_delay = 30
     now = 0
-    secunds: int
+    seconds: int
 
     def convertable_to_int(data):
         try:
@@ -305,7 +291,7 @@ class Delay:
         if input_string is None:
             actual_delay = Delay.default_shutdown_delay
         elif input_string.lower() == "now":
-            self.secunds = Delay.now
+            self.seconds = Delay.now
             return
         elif "h" in input_string or "m" in input_string or "s" in input_string:
             if 'h' in input_string:
@@ -335,22 +321,22 @@ class Delay:
             raise NotDelayException()
         if actual_delay < Delay.min_shutdown_dilay:
             actual_delay = Delay.min_shutdown_dilay
-        self.secunds = actual_delay
+        self.seconds = actual_delay
 
 loop_run = True
 dont_wake_after = dtime.fromisoformat("22:00")
 dont_wake_before = dtime.fromisoformat("06:00")
+logger = Logger(level=LEVEL.TRACE)
 
 _api: API = None
 check_loop: threading.Thread = None
-pcs: computers = None
-ip = None
-das = True
+pcs: Computers = None
+ip: str = None
 
-TINY = 0
-SMALL = 1
-PARTIAL = 2
-FULL = 3
+class Reset(Enum):
+    FORCE_AUTO_OFF = 0
+    FORCE_MANUAL_OFF = 1
+    FULL = 2
 
 def restart():
     from os import system as run
@@ -358,99 +344,76 @@ def restart():
     ext = "sh" if system() == 'Linux' else "exe"
     run(f"./restarter.{ext}")
 
-def retrive_confirmation(socket: socket.socket, name: str, delay: int):
+def retrive_confirmation(socket: socket.socket, name: str, delay: float):
     start_time = time.time()
-    socket.settimeout(float(delay))
-    while time.time() - start_time < delay:
+    socket.settimeout(delay)
+    data = pcs[pcs.get_by_name(name)]
+    while time.time() - start_time < (delay * 3):
         try:
             r = socket.recv(1).decode("utf-8")
-            print(f"{name} Command status retrived")
+            logger.info(f"{name} Command status retrived")
             if r == '1':
                 ansv = "PC executed the command"
+                if data.status == Status.A_SHUTTING_DOWN:
+                    data.status = Status.AUTOMATIC_OFF
+                else: 
+                    data.status = Status.MANUALLY_OFF
             else:
                 ansv = "PC interrupted the command"
+                data.status = Status.ONLINE
             break
         except:
             time.sleep(0.1)
     else:
         ansv = "socket timed out"
-    print(f"{name} {ansv}")
-    api_send(ansv, user=pcs[pcs.get_by_name(name)].discord)
+        data.status = Status.ONLINE
+    logger.info(f"{name} {ansv}")
+    api_send(ansv, user=data.owner.discord)
 
-SHUTDOWN = 0
-SLEEP = 1
-RESTART = 2
+class Command(Enum):
+    SHUTDOWN = 0
+    SLEEP = 1
+    RESTART = 2
 
-def shutdown_pc(phone, delay=None, _command=SHUTDOWN, user=None, interface=Interface.Discord):
+def shutdown_pc(phone: str, delay: Union[Delay, None] = None, _command = Command.SHUTDOWN, user: Union[Delay, None] = None, interface = Interface.Discord):
     try:
-        if user is None:
-            user = globals()['pcs'][phone].discord
-        print(f'Shutdown {phone}')
         if phone not in pcs.stored:
-            phone = pcs.get_by_name(phone)
-        if phone not in pcs.stored:
-            print(f"User  not found {phone}")
+            logger.info(f"User  not found {phone}")
             return
-        IP = pcs[phone].pc_ip if pcs[phone].fix_ip is None else pcs[phone].fix_ip
+        data = pcs[phone]
+        IP = data.ip_address
         if IP is None:
-            print(f"IP not found for {phone} PC")
-            api_send(f"IP not found for {phone} PC",
-                     user=user, interface=interface)
+            logger.info(f"IP not found for {data.owner.name} PC")
+            api_send(f"IP not found for {data.owner.name} PC", user=user, interface=interface)
             return
         try:
             actual_delay = Delay(delay)
         except NotDelayException as e:
-            print(f"{delay} not a correct delay value!")
-            api_send(f"{delay} not a correct delay value!",
-                     user=user, interface=interface)
+            logger.info(f"{delay} not a correct delay value!")
+            api_send(f"{delay} not a correct delay value!", user=user, interface=interface)
             return
         try:
             _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             _socket.connect((IP, 666))
-            command = "SHUTDOWN" if _command is SHUTDOWN else "SLEEP" if _command is SLEEP else 'RESTART'
-            send(_socket, sha256(
-                f"{command}{globals()['pcs'][phone].pc.lower()}".encode("utf-8")).hexdigest())
-            send(_socket, actual_delay.secunds)
+            command = _command.name
+            send(_socket, sha256(f"{command}{data.MAC_address.lower()}".encode("utf-8")).hexdigest())
+            send(_socket, actual_delay.seconds)
             try:
                 _socket.recv(5).decode("utf-8")
-                api_send(
-                    f"Initiated '{command.lower()}' command!", user=user, interface=interface)
-                print(f"{phone} ACK arrived!")
-                t = threading.Thread(target=retrive_confirmation, args=[_socket, globals()[
-                                     'pcs'][phone].name, actual_delay.secunds*2, ])
-                t.name = f"Confirmation {globals()['pcs'][phone].name}"
+                api_send(f"Initiated '{command.lower()}' command!", user=user, interface=interface)
+                logger.info(f"{data.owner.name} ACK arrived!")
+                t = threading.Thread(target=retrive_confirmation, args=[_socket, data.owner.name, float(actual_delay.seconds*2), ])
+                t.name = f"Confirmation {data.name}"
                 t.start()
             except TimeoutError:
-                print(
-                    f"Acknolagement didn't arrive for {globals()['pcs'][phone].name}!")
-                api_send(
-                    f"Pc did not react to the {command.lower()} command!", user=user, interface=interface)
+                logger.warning(f"Acknolagement didn't arrive for {data.owner.name}!")
+                api_send(f"Pc did not react to the {command.lower()} command!", user=user, interface=interface)
         except Exception as ex:
-            print(f"Exception in shutdown_pc send: {ex}")
-            api_send(
-                f"Excepption during shutdown sending: {ex}", user=user, interface=interface)
+            logger.error(f"Exception in shutdown_pc send: {ex}")
+            logger.debug(f"IP address: {IP}")
+            api_send(f"Excepption during shutdown sending: {ex}", user=user, interface=interface)
     except Exception as ex:
-        print(f"Exception in shutdown_pc: {ex}")
-
-def scan(_ip, pre_scann=False):
-    ip = _ip.split(".")
-    del ip[-1]
-    ip = '.'.join(ip)
-    ip = [f"{ip}.{i}" for i in range(2, 254)]
-    start = time.time()
-    ip_s = []
-    mc = {}
-    if pre_scann:
-        arpsim.pre_check(ip)
-    ip_s = arpsim.arp_scan()
-    for pcip in ip_s:
-        if len(pcip) != 2:
-            continue
-        if pcip[0] != _ip:
-            mc[pcip[1]] = pcip[0]
-    finish = time.time()
-    #print(f"Finished under {finish-start} s")
-    return [mc, start, finish]
+        logger.error(f"Exception in shutdown_pc: {ex}")
 
 def dump_to_file(arg):
     """Dumps the arg to a file. arg must be json-like.
@@ -477,22 +440,15 @@ def get_data(name):
     key = pcs.get_by_name(name)
     return [key, pcs[key]]
 
-def avg(inp):
-    return sum(inp)/len(inp)
-
 def loop():
     global ip
     counter = 0
-    _avg = []
     while loop_run:
-        ret = scan(ip, counter % 50 == 0)
-        pcs.iterate(ret[0])
-        # _avg.append(ret[2]-ret[1])
+        ret = scan_local(ip, 254)
+        pcs.iterate(ret)
         if counter == 200:
             get_ip()
             counter = -1
-            #print(f"Average scan time: {avg(_avg)}s")
-            #_avg = []
         counter += 1
         time.sleep(1)
 
@@ -500,7 +456,7 @@ def main():
     global loop_run
     while True:
         try:
-            time.sleep(0.3)
+            time.sleep(1)
         except KeyboardInterrupt:
             break
     loop_run = False
@@ -534,13 +490,13 @@ def update(*_):
 
 def api_send(msg, user=None, interface=Interface.Discord):
     try:
-        _api.send_message(message=msg, interface=interface, destination=user)
+        if(user is not None):
+            _api.send_message(message=msg, interface=interface, destination=user)
     except Exception as ex:
-        print("API exception!")
-        print(ex)
+        logger.error(f"API exception: {ex}")
 
 def api_sleep(message):
-    get_api_shutdown_sleep(message, SLEEP)
+    get_api_shutdown_sleep(message, Command.SLEEP)
 
 def get_target_name(data: list):
     if pcs.get_by_name(data[0]):
@@ -589,45 +545,35 @@ def get_api_shutdown_sleep(message: Message, command):
                 requester, delay = determine_delay_for_api_call(
                     delay.split(" "), has_user, message.get_contained_user_id())
             else:
-                print("User is not admin!")
-                api_send(
-                    "Only admins allowed to shutdown/sleep other users!", user=requester)
+                logger.warning(f"User `{_api.get_username(requester)}` is not admin!")
+                api_send("Only admins allowed to shutdown/sleep other users!", user=requester)
                 return
         shutdown_pc(requester, delay, _command=command,
-                    user=message.sender, interface=message.interface)
+                    user=requester, interface=message.interface)
     except Exception as ex:
-        print(f"Exception in get_api_shutdown_sleep: {ex}")
+        logger.error(f"Exception in get_api_shutdown_sleep: {ex}")
 
 def api_shutdown(message):
-    get_api_shutdown_sleep(message, SHUTDOWN)
+    get_api_shutdown_sleep(message, Command.SHUTDOWN)
 
 def api_wake(message: Message):
     try:
-        print(f"Wake {message.sender}")
+        logger.info(f"Wake {message.sender}")
         user = pcs.get_by_name(message.sender)
         if not user:
-            api_send("Your account is not connected to any PC on the list",
-                     message.sender, message.interface)
+            api_send("Your account is not connected to any PC on the list", message.sender, message.interface)
             return
         api_send(pcs.wake(user, False), message.sender, message.interface)
     except Exception as ex:
-        print(f"Exception in api_wake: {ex}")
+        logger.error(f"Exception in api_wake: {ex}")
 
-def status(message):
+def status(message: Message):
     if _api.valid:
         if (not _api.send_message(pcs.get_UI_list(), destination=message.channel)):
             _api.send_message(pcs.get_UI_list(), destination=message.sender)
 
-def Computers_test(computers: computers):
-    for line in Computers_functions:
-        _ = getattr(computers, line)
-    for line in Computers_should_not_contain:
-        if line in computers.__dict__.items():
-            raise Exception("Unused function!")
-    for _, data in computers.stored.items():
-        for line in Computers_data_keys:
-            getattr(data, line)
-        break
+def Computers_test(computers: Computers):
+    return computers.version == Computers.VERSION
 
 def init_api():
     global _api
@@ -645,80 +591,39 @@ def init_api():
     _api.create_function(
         "PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
 
-def print(data):
-    original_print(f"[{datetime.now()}]: {data}")
-
 def setup():
     global check_loop
     global pcs
     if path.exists("pcs"):
-        with open("pcs", 'br') as f:
-            pcs = pickle.load(f)
+        try:
+            with open("pcs", 'br') as f:
+                pcs = pickle.load(f)
+        except:
+            pcs = Computers(api_send)
+            if path.exists('export.json'):
+                pcs.import_from_json()
+                save()
     else:
-        pcs = computers(api_send)
+        pcs = Computers(api_send)
         if path.exists('export.json'):
             pcs.import_from_json()
             save()
     try:
-        print("Testing the integrity...")
+        logger.info("Testing the integrity...")
         Computers_test(pcs)
-        print("Test succeeded")
+        logger.debug("Test succeeded")
     except Exception as ex:
-        print("Test failed, reimporting...")
-        pcs = computers(api_send)
+        logger.warning("Test failed, reimporting...")
+        pcs = Computers(api_send)
         if path.exists('export.json'):
             pcs.import_from_json()
             save()
-        print("Reimport finished")
+        logger.info("Reimport finished")
     check_loop = threading.Thread(target=loop)
     check_loop.name = "Wake check loop"
     check_loop.start()
 
 get_ip()
-
-Computers_functions = [
-    "stored",
-    "id",
-    "window",
-    "send",
-    "set_window",
-    "ping",
-    "add_new",
-    "get_UI_list",
-    "__len__",
-    "__getitem__",
-    "changed",
-    "remove",
-    "get_by_name",
-    "get_by_id",
-    "iterate",
-    "wake_everyone",
-    "get_random_welcome",
-    "wake",
-    "reset_state",
-    "save_to_json",
-    "import_from_json",
-    "is_MAC",
-    "is_time"]
-Computers_should_not_contain = [
-    "print_import_message"
-]
-Computers_data_keys = [
-    "pc",
-    "is_online",
-    "was_wakened",
-    "id",
-    "name",
-    "phone_last_online",
-    "was_online",
-    "wake_time",
-    "discord",
-    "pc_ip",
-    "last_signal",
-    "manually_turned_off",
-    "is_time",
-    "telegramm"]
-
 init_api()
 setup()
 

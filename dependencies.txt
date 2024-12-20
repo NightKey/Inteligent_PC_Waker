@@ -1,6 +1,5 @@
 wakeonlan
 python-nmap
-getmac
 smdb_api
-discord
+smdb_logger
 requests

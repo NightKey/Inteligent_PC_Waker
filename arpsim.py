@@ -1,24 +1,49 @@
-import subprocess
-from platform import system
-import re
-import os
+from typing import List, Dict
+import ctypes
+from os import path
+from typing import Tuple
 
-mac_filter = r"([a-fA-F0-9]{2}[:-]){5}([a-fA-F0-9]{2})"
-ip_filter = r"([0-9]{1,3}[.]){3}([0-9]){1,3}"
-system_specific_switches = ["-n", ["arp", "-a"]
-                            ] if system() == "Windows" else ["-c", ["arp"]]
+class ScanResult(ctypes.Structure):
+    _fields_ = [
+        ("ipAdress", ctypes.c_char_p),
+        ("resultCode", ctypes.c_uint32),
+        ("resultAddress", (ctypes.c_uint32 * 2))
+    ]
 
+    def get_address(self) -> Tuple[str, str]:
+        size = 6
+        matrix = ctypes.cast(ctypes.pointer(self.resultAddress), ctypes.POINTER(ctypes.c_ubyte))
+        return (":".join([f"{matrix[i]:02X}" for i in range(size)]), self.ipAdress.decode())
 
-def pre_check(ip_range):
-    devnull = open(os.devnull, "wb")
-    for ip in ip_range:
-        subprocess.Popen(
-            ["ping",  system_specific_switches[0], "1", ip], stdout=devnull)
-    devnull.close()
+module_name = "arp.dll"
+arp = ctypes.CDLL(path.join(path.dirname(__file__), "C", module_name))
 
+scan_all = arp.scanAll
+scan_all.restype = ctypes.POINTER(ScanResult)
+scan_all.argtypes = [ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t]
 
-def arp_scan():
-    reply = subprocess.check_output(system_specific_switches[1])
-    reply = [[item.upper().replace('-', ':') for item in line.replace("\r", "").strip().split(' ') if re.match(mac_filter, item)
-              or re.match(ip_filter, item)] for line in reply.decode("utf-8").split("\n") if re.search(mac_filter, line)]
-    return reply
+def arp_scan_all(adresses: List[str]) -> Dict[str, str]:
+    list_size = len(adresses)
+    arr = (ctypes.c_char_p * list_size)()
+    arr[:] = [x.encode() for x in adresses]
+    scan_result = scan_all(arr, list_size)
+    result = {}
+
+    for i in range(list_size):
+        (key, value) = scan_result[i].get_address()
+        if value == "00:00:00:00:00:00": continue
+        result[key] = value
+
+    return result
+
+def scan_local(ip_address: str, limit: int) -> Dict[str, str]:
+    limit = min(limit, 254)
+    base = ".".join(ip_address.split(".")[:3])
+    adresses = []
+
+    for x in range(2, limit):
+        adresses.append(".".join([base, str(x)]))
+
+    return arp_scan_all(adresses)
+
+    return arp_scan_all(adresses)
