@@ -615,8 +615,8 @@ def api_wake(message: Message):
 
 def status(message):
     if _api.valid:
-        if (not _api.send_message(pcs.get_UI_list(), destination=message.channel)):
-            _api.send_message(pcs.get_UI_list(), destination=message.sender)
+        if (not _api.send_message(pcs.get_UI_list(), interface=message.interface,  destination=message.channel)):
+            _api.send_message(pcs.get_UI_list(), interface=message.interface, destination=message.sender)
 
 def Computers_test(computers: computers):
     for line in Computers_functions:
