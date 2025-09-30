@@ -10,7 +10,7 @@ try:
     import json
     import random
     from getmac import get_mac_address
-    from smdb_api import API, Message, Interface
+    from smdb_api import API, Message, Interface, Privilege
     from os import path, devnull
     import platform    # For getting the operating system name
     import subprocess  # For executing a shell command
@@ -631,19 +631,47 @@ def Computers_test(computers: computers):
 
 def init_api():
     global _api
-    _api = API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c",
-               update_function=update)
+    _api = API("Waker", "ef6a9df062560ce93e1236bce9dc244a6223f1f68ba3dd6a6350123c7719e78c", update_function=update)
     _api.validate()
     _api.create_function(
-        "wake", "Wakes up the user's connected PC\nUsage: &wake\nCategory: NETWORK", api_wake)
+        "wake", 
+        "Wakes up the user's connected PC\nUsage: &wake\nCategory: NETWORK",
+        api_wake,
+        privilege=Privilege.OnlyAdmin,
+        show_button=True
+        )
+
     _api.create_function(
-        "shutdown", "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+        "shutdown", 
+        "Shuts down the user's connected PC\nUsage: &shutdown <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", 
+        api_shutdown, 
+        privilege=Privilege.OnlyAdmin, 
+        show_button=True
+        )
+
     _api.create_function(
-        "shtd", "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_shutdown)
+        "shtd", 
+        "Same as shutdown\nUsage: &shtd <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", 
+        api_shutdown, 
+        privilege=Privilege.OnlyAdmin, 
+        show_button=True
+        )
+
     _api.create_function(
-        "sleep", "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", api_sleep)
+        "sleep",
+        "Sends the user's connected PC to sleep\nUsage: &sleep <delay in either secunds, or xhymzs format, where x,y,z are numbers. default: 30s>\nCategory: NETWORK", 
+        api_sleep, 
+        privilege=Privilege.OnlyAdmin, 
+        show_button=True
+        )
+
     _api.create_function(
-        "PCStatus", "Shows the added PC's status\nCategory: NETWORK", status)
+        "PCStatus", 
+        "Shows the added PC's status\nCategory: NETWORK", 
+        status, 
+        privilege=Privilege.OnlyAdmin, 
+        show_button=True
+        )
 
 def print(data):
     original_print(f"[{datetime.now()}]: {data}")
