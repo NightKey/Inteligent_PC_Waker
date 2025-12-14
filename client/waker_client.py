@@ -4,9 +4,13 @@ from platform import system
 import socket
 import json
 import threading
-import PySimpleGUI as sg
-from getmac import get_mac_address as gma
+import tkinter as tk
+from uuid import getnode as get_mac
 from hashlib import sha256
+
+def gma() -> str:
+    address = hex(get_mac())[2:]
+    return ":".join(f"{address[i]}{address[i+1]}" for i in range(0, len(address), 2))
 
 DO = True
 DONT = False
@@ -16,27 +20,51 @@ COMMAND = None
 THREAD_RUNNING = False
 window = None
 
-
 class UI:
     def __init__(self, text, delay):
         try:
             self.counter = int(delay)
-        except:
+        except Exception:
             self.counter = 30
-        sg.theme("dark")
-        layout = [
-            [sg.Text(f"The pc will {text} after"), sg.Text(
-                str(self.counter), key="COUNTER"), sg.Text("secunds")],
-            [sg.Button(f"{text} now", key="SKIP"),
-             sg.Button("Cancle", key="CANCLE")],
-            [sg.InputCombo(["1", "5", "10", "20", "50"], key="AMOUNT", default_value="1"), sg.InputCombo(
-                ["s", "m", "h"], key="TYPE", default_value="s"), sg.Button("Increment", key="INC"), sg.Button("Decrement", key="DEC")]
-        ]
-        self.window = sg.Window(
-            "Warning", layout, finalize=True, keep_on_top=True)
-        self.read = self.window.read
+
+        self.text = text
         self.is_running = True
         self.closed = False
+        self.result = DONT
+
+        self.root = tk.Tk()
+        self.root.title("Warning")
+        self.root.attributes("-topmost", True)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.root.withdraw()
+
+        frame1 = tk.Frame(self.root)
+        frame1.pack(padx=10, pady=5)
+
+        tk.Label(frame1, text=f"The pc will {text} after").pack(side="left")
+        self.counter_label = tk.Label(frame1, text=str(self.counter))
+        self.counter_label.pack(side="left", padx=5)
+        tk.Label(frame1, text="seconds").pack(side="left")
+
+        frame2 = tk.Frame(self.root)
+        frame2.pack(pady=5)
+
+        tk.Button(frame2, text=f"{text} now", command=lambda: self.work("SKIP")).pack(side="left", padx=5)
+        tk.Button(frame2, text="Cancel", command=lambda: self.work("CANCLE")).pack(side="left", padx=5)
+
+        frame3 = tk.Frame(self.root)
+        frame3.pack(pady=5)
+
+        self.amount = tk.StringVar(value="1")
+        self.type_ = tk.StringVar(value="s")
+
+        tk.OptionMenu(frame3, self.amount, "1", "5", "10", "20", "50").pack(side="left")
+        tk.OptionMenu(frame3, self.type_, "s", "m", "h").pack(side="left")
+        tk.Button(frame3, text="Increment", command=lambda: self.work("INC")).pack(side="left", padx=5)
+        tk.Button(frame3, text="Decrement", command=lambda: self.work("DEC")).pack(side="left", padx=5)
+
+    def _on_close(self):
+        self.last_event = "CANCLE"
 
     def request_close(self):
         self.is_running = False
@@ -46,53 +74,47 @@ class UI:
 
     def count_down(self):
         self.counter -= 1
+        self.root.after(0, lambda: self.counter_label.config(text=str(self.counter)))
         if self.counter <= 0:
-            return DO
-        return DONT
+            self.result = DO
+            self.close()
+        return self.result
 
     def close(self):
+        if not self.is_running and self.closed: return
         self.is_running = False
-        self.window.RootNeedsDestroying = True
-        self.window.Close()
         self.closed = True
+        self.root.withdraw()
+        self.root.destroy()
 
-    def work(self, event, values):
-        if event == sg.WINDOW_CLOSED or event == "CANCLE":
+    def work(self, event):
+        if event in ("CANCLE", "WINDOW_CLOSED"):
             self.close()
-            return DONT
+            self.result = DONT
+
         elif event == "INC":
-            time = int(values["AMOUNT"])
-            if values["TYPE"] == "m":
+            time = int(self.amount.get())
+            if self.type_.get() == "m":
                 time *= 60
-            elif values["TYPE"] == "h":
+            elif self.type_.get() == "h":
                 time *= 3600
             self.request_time_change(time)
+
         elif event == "DEC":
-            time = int(values["AMOUNT"])
-            if values["TYPE"] == "m":
+            time = int(self.amount.get())
+            if self.type_.get() == "m":
                 time *= 60
-            elif values["TYPE"] == "h":
+            elif self.type_.get() == "h":
                 time *= 3600
-            self.request_time_change(time*-1)
+            self.request_time_change(-time)
+
         elif event == "SKIP":
             self.close()
-            return DO
+            self.result = DO
 
     def show(self):
-        while self.is_running and not self.closed and self.counter > 0:
-            event, values = self.read(timeout=1)
-            if event == "CANCLE" or event == "SKIP":
-                return self.work(event, values)
-            elif event != "__TIMEOUT__":
-                self.work(event, values)
-            self.window["COUNTER"].Update(str(self.counter))
-        else:
-            if not self.is_running:
-                self.close()
-            if self.counter <= 0:
-                return DO
-            else:
-                return DONT
+        self.root.deiconify()
+        self.root.mainloop()
 
 
 def counter(window):
@@ -169,7 +191,7 @@ if __name__ == "__main__":
             if system() == "Windows":
                 globals()["COMMAND"] = "shutdown /s /t 10"
             else:
-                globals()["COMMAND"] = "shutdown -s -t 10"
+                globals()["COMMAND"] = "sleep 10; systemctl poweroff"
             globals()["THREAD_RUNNING"] = True
             window = UI("Shutdown", delay)
         elif command == _sleep:
@@ -184,7 +206,7 @@ if __name__ == "__main__":
             if system() == "Windows":
                 globals()["COMMAND"] = "shutdown /r /t 10"
             else:
-                globals()["COMMAND"] = "shutdown -r -t 10"
+                globals()["COMMAND"] = "sleep 10; systemctl reboot"
             globals()["THREAD_RUNNING"] = True
             window = UI("Restart", delay)
         conn.send('1'.encode(encoding='utf-8'))
@@ -197,10 +219,11 @@ if __name__ == "__main__":
             bg = threading.Thread(target=counter, args=[window, ])
             bg.name = "COUNTER"
             bg.start()
-            if window.show():
+            window.show()
+            if window.result:
                 print("WindowShow returned True")
-                window.close()
                 execute_command(conn)
+                window.close()
             else:
                 print("WindowShow returned False")
                 window.close()
